@@ -1,0 +1,67 @@
+/* HOT Design System — Avatar. Values read from the Figma "Avatar" page; colors use tokens only. */
+.hot-avatar {
+  /* A parent (for example a pressed list row or the main nav) can recolor the background, ring and letter by setting --avatar-bg, --avatar-ring and --avatar-letter. */
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--iconSizeLg);
+  height: var(--iconSizeLg);
+  border-radius: var(--radiusFull);
+  background: var(--avatar-bg, var(--pastelLightBlueSurfaceDefault));
+  color: var(--avatar-letter, var(--slateSurfaceWhite));
+  font: var(--text-body-xs-medium);
+  user-select: none;
+}
+.hot-avatar--small { width: 18px; height: 18px; font-size: 9px; line-height: 13.5px; }
+/* Large: 32px with a 14px medium letter (no Figma frame yet). The dot is still 8px, in the bottom-right corner. */
+.hot-avatar--large { width: var(--spacing8); height: var(--spacing8); font: var(--text-body-md-medium); }
+
+/* Status dot: a white ring with a colored dot inside. It sits at the bottom-right corner. */
+.hot-avatar__status {
+  position: absolute;
+  left: var(--spacing4);
+  top: var(--spacing4);
+  width: var(--spacing2);
+  height: var(--spacing2);
+  border-radius: var(--radiusFull);
+  background: var(--avatar-ring, var(--slateSurfaceWhite));
+}
+.hot-avatar__status::before {
+  content: '';
+  position: absolute;
+  inset: var(--spacing0);
+  border-radius: var(--radiusFull);
+  background: var(--successBorderDark);
+}
+.hot-avatar__status--offline::before { background: var(--slateSurfaceDefault); }
+.hot-avatar__status--offline::after {
+  content: '';
+  position: absolute;
+  inset: var(--spacing05);
+  border-radius: var(--radiusFull);
+  background: var(--slateSurfaceWhite);
+}
+
+/* Small: the dot is 8px and, as in Figma, sits slightly lower and further out */
+.hot-avatar--small .hot-avatar__status { left: var(--spacing3); top: var(--spacing3); width: var(--spacing2); height: var(--spacing2); }
+.hot-avatar--small .hot-avatar__status::before { inset: var(--spacing0); }
+.hot-avatar--small .hot-avatar__status--offline { left: var(--spacing25); top: var(--spacing25); }
+.hot-avatar--small .hot-avatar__status--offline::after { inset: var(--spacing05); }
+
+/* Large: the dot sits in the bottom-right corner of the 32px circle */
+.hot-avatar--large .hot-avatar__status { left: var(--spacing6); top: var(--spacing6); }
+.hot-avatar--large .hot-avatar__status::before { inset: var(--spacing0); }
+.hot-avatar--large .hot-avatar__status--offline::after { inset: var(--spacing05); }
+
+/* Colours, from the pastel surface tokens (grey is the slate surface). */
+.hot-avatar--lightBlue { --avatar-bg: var(--pastelLightBlueSurfaceDefault); }
+.hot-avatar--red { --avatar-bg: var(--pastelRedSurfaceDefault); }
+.hot-avatar--orange { --avatar-bg: var(--pastelOrangeSurfaceDefault); }
+.hot-avatar--yellow { --avatar-bg: var(--pastelYellowSurfaceDefault); }
+.hot-avatar--green { --avatar-bg: var(--pastelGreenSurfaceDefault); }
+.hot-avatar--purple { --avatar-bg: var(--pastelPurpleSurfaceDefault); }
+.hot-avatar--violet { --avatar-bg: var(--pastelVioletSurfaceDefault); }
+.hot-avatar--grey { --avatar-bg: var(--slateSurfaceDefault); }

@@ -1,0 +1,58 @@
+/* HOT Design System — Modal. Values read from the Figma "Modal" frames; colors use tokens only. */
+.hot-modal {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  border-radius: var(--radius12);
+  background: var(--slateSurfaceSlate150);
+  font-family: var(--fontFamily);
+}
+
+/* Standard: header bar + white body */
+.hot-modal__header { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing3) var(--spacing4); }
+.hot-modal__header--icon { padding: var(--spacing2) var(--spacing4); }
+.hot-modal__heading { display: flex; align-items: center; gap: var(--spacing05); min-width: 0; }
+.hot-modal__icon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: var(--spacing8); height: var(--spacing8); border-radius: var(--radius6); color: var(--slateTextBody); }
+.hot-modal__title { margin: 0; font: var(--text-body-lg-medium); color: var(--slateTextBody); }
+/* The close button is the ghost icon Button. It is pulled in so the header stays 48px, and keeps the lighter icon colour. */
+.hot-modal__close { --btn-fg: var(--slateTextSubtle); margin: -7px; }
+.hot-modal__close:focus-visible { outline: var(--spacing05) solid var(--primaryBorderDefault); outline-offset: var(--spacing05); }
+.hot-modal__body {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing5);
+  padding: var(--spacing5);
+  box-shadow: inset 0 0 0 1px var(--slateBorderLight); /* drawn inside, so it takes no room, as in Figma */
+  border-radius: var(--radius12);
+  background: var(--slateSurfaceWhite);
+}
+.hot-modal__text { margin: 0; font: var(--text-body-md-regular); color: var(--slateTextSubtle); }
+.hot-modal__note {
+  box-sizing: border-box;
+  padding: var(--spacing3);
+  border: 0.5px solid var(--slateBorderLight);
+  border-radius: var(--radius8);
+  background: var(--slateSurfaceSubtle200);
+  font: var(--text-body-xs-regular);
+  color: var(--slateTextBody);
+}
+/* Buttons are 36px tall here, not one of the standard Button heights. They share the row. */
+.hot-modal__actions { display: flex; justify-content: flex-end; gap: var(--spacing4); }
+.hot-modal__actions .hot-btn, .hot-modal__centered-actions .hot-btn { height: var(--spacing9); min-width: 102px; }
+
+/* Centered: no header bar */
+.hot-modal--centered { align-items: center; padding: var(--spacing4); gap: var(--spacing4); }
+.hot-modal__corner { position: absolute; top: var(--spacing4); right: var(--spacing4); }
+.hot-modal__centered-body { display: flex; flex-direction: column; align-items: center; gap: var(--spacing2); width: 300px; max-width: 100%; text-align: center; }
+.hot-modal__big-icon { display: inline-flex; width: 44px; height: 44px; }
+.hot-modal__centered-heading { display: flex; flex-direction: column; gap: var(--spacing1); width: 100%; }
+.hot-modal__centered-title { margin: 0; font: var(--fontWeightRegular) 18px/28px var(--fontFamily); color: var(--slateTextBody); }
+.hot-modal__centered-text { font: var(--text-body-md-regular); color: var(--slateTextSubtle); }
+.hot-modal__centered-actions { display: flex; width: 200px; }
+.hot-modal__centered-actions .hot-btn { flex: 1; }
+
+/* In Figma the modal's red button is the darker red (errorSurfaceDefault), not the bright red of the Button page. */
+.hot-modal .hot-btn--error { --btn-bg: var(--errorSurfaceDefault); --btn-bg-hover: var(--errorSurfaceDefault); --btn-bg-active: var(--errorSurfaceDefault); }

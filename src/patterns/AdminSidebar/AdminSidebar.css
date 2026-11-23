@@ -1,0 +1,63 @@
+/* HOT Design System — Admin panel sidebar. Values read from the Figma "Admin Panel" frame; colors use tokens only. */
+.hot-admin-sidebar {
+  user-select: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing15);
+  flex: none; /* never shrinks below 240px, even inside a flex row */
+  width: 240px;
+  min-width: 240px;
+  height: 100%;
+  padding: 0 var(--spacing3);
+  background: var(--slateSurfaceSubtle);
+  box-shadow: inset -1px 0 0 var(--slateBorderLight); /* drawn inside, so it takes no width, as in Figma */
+  font-family: var(--fontFamily);
+  color: var(--slateTextBody);
+}
+.hot-admin-sidebar__header {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: var(--spacing12);
+  padding: var(--spacing2) var(--spacing2) var(--spacing3);
+  font: var(--text-body-lg-medium);
+}
+.hot-admin-sidebar__sections { display: flex; flex-direction: column; gap: var(--spacing3); }
+.hot-admin-sidebar__section { display: flex; flex-direction: column; }
+.hot-admin-sidebar__section-title {
+  display: flex;
+  align-items: center;
+  height: var(--spacing8);
+  padding: 0 var(--spacing2); /* the heading lines up with the icons of the items under it */
+  font: var(--fontWeightMedium) 13px/18px var(--fontFamily);
+  color: var(--slateTextSubtle);
+}
+/* Items follow the Sub-nav: 216px wide (12px in from each side), 4px apart */
+.hot-admin-sidebar__list { display: flex; flex-direction: column; gap: var(--spacing05); list-style: none; margin: 0; padding: 0; }
+
+.hot-admin-sidebar__item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing2);
+  width: 100%;
+  height: var(--spacing8);
+  padding: 0 var(--spacing2);
+  border: 0;
+  border-radius: var(--radius8);
+  background: transparent;
+  color: var(--slateTextBody);
+  font: var(--text-body-md-regular);
+  text-align: left;
+  cursor: pointer;
+}
+.hot-admin-sidebar__item svg { flex: none; }
+.hot-admin-sidebar__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hot-admin-sidebar__item:is(:hover, [data-force-state='hover']) { background: var(--slateSurfaceSubtle100Hover); }
+.hot-admin-sidebar__item:focus-visible { outline: var(--spacing05) solid var(--primaryBorderDefault); outline-offset: -2px; }
+.hot-admin-sidebar__item[aria-current='page'] {
+  background: var(--primarySurfaceSubtle);
+  color: var(--primarySurfaceDefault);
+  font-weight: var(--fontWeightMedium);
+}
