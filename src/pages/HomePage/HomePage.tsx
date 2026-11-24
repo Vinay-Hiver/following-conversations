@@ -324,7 +324,8 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const listItems = isFollowing
     ? followedEntries.map(({ inbox: i, conv: c }) => ({ ...toListItem(c), preview: c.subject ?? '', sla: undefined, moreCount: undefined, tags: [{ label: i.label }, statusTag[statuses[c.id] ?? 'open']] }))
     : isMyWork
-    ? myWorkEntries.map(({ inbox: i, conv: c }) => ({ ...toListItem(c), preview: c.subject ?? '', sla: undefined, moreCount: undefined, tags: [{ label: i.label }, { label: assigneeOf(c.id) === ME ? 'Assignee' : 'Co-assignee' }, statusTag[statuses[c.id] ?? 'open']] }))
+    // My Work cards look like the inbox cards: the latest message, no inbox, role or status chips.
+    ? withLatest(myWorkEntries.map(({ conv: c }) => toListItem(c)), latestFor)
     : inbox ? withLatest(inView(inbox, currentView?.view.label).map(toListItem), latestFor) : []
   const color = avatarColors[Math.max(selectedIndex, 0) % avatarColors.length]
 
