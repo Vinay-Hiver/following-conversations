@@ -103,7 +103,10 @@ function sharedInboxItems(inboxes: HomeInbox[], countOf: (inbox: HomeInbox, view
  * Tags and All Views show no list.
  */
 export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /** Called with the id of the Main nav item that was pressed (for example `admin`), so a page above can switch to it. */ onNavChange?: (id: string) => void }) {
-  const { inboxes, customFields } = data
+  const { customFields } = data
+  // Copies of an email removed from an inbox (Remove from shared inbox). The other inbox keeps its copy.
+  const [removed, setRemoved] = useState<string[]>([])
+  const inboxes = useMemo(() => data.inboxes.map((i) => ({ ...i, conversations: i.conversations.filter((c) => !removed.includes(c.id)) })), [data.inboxes, removed])
   const first = inboxes[0]
   const [navValue, setNavValue] = useState('conversations')
   const [view, setView] = useState(first ? `${keyOf(first)}-${channelViews[first.channel][0]}` : '')
@@ -286,6 +289,8 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const inbox = isPersonal ? openEntry?.inbox ?? personalEntries[0]?.inbox : currentView?.inbox
   // Access was revoked: the conversation is not shown, even from an old link.
   const noAccess = !!openEntry && revoked.includes(keyOf(openEntry.inbox))
+  // Other inboxes you can reach that hold the same email.
+  const otherInboxes = openEntry ? accessible.filter((i) => i.id !== openEntry.inbox.id && i.conversations.some((c) => c.email === openEntry.conv.email && c.subject === openEntry.conv.subject)).map((i) => i.label) : []
   const channel = inbox?.channel
   const selectedConv = inbox?.conversations.find((c) => c.id === selected)
   const selectedIndex = inbox && selected ? inbox.conversations.findIndex((c) => c.id === selected) : 0
@@ -328,6 +333,13 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           onAssigneeChange={(v) => selected && setAssignees((p) => ({ ...p, [selected]: v }))}
           coAssigneeValue={selected ? coAssigneeOf(selected) : NONE}
           onCoAssigneeChange={(v) => selected && setCoAssignees((p) => ({ ...p, [selected]: v }))}
+          otherInboxes={channel === 'email' ? otherInboxes : undefined}
+          onRemoveFromInbox={() => {
+            if (!selected) return
+            setRemoved((p) => [...p, selected])
+            setFollowed((p) => p.filter((x) => x !== selected))
+            setSelected(listItems.find((c) => c.id !== selected)?.id)
+          }}
         />}
       >
         {isPersonal && personalEntries.length === 0 && !noAccess && (

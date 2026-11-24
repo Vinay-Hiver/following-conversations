@@ -1,4 +1,8 @@
+import { useRef, useState } from 'react'
 import { Button } from '../../components/Button'
+import { Dropdown } from '../../components/Dropdown'
+import { Popover } from '../../components/Popover'
+import { Tooltip } from '../../components/Tooltip'
 import { Tag } from '../../components/Tag'
 import { Icon } from '../../icons/Icon'
 import type { IconName } from '../../icons/iconData'
@@ -20,6 +24,26 @@ function Row({ icon, label, children, link }: { icon: IconName; label: string; c
   )
 }
 
+/** The heading when the email is in more than one inbox (Figma "Container (Hiver)"): inbox name, "+N more", and a menu with Remove from shared inbox. */
+function SharedHeading({ name, others, onRemove }: { name: string; others: string[]; onRemove?: () => void }) {
+  const [open, setOpen] = useState(false)
+  const kebab = useRef<HTMLSpanElement>(null)
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing2)', height: 28, marginTop: 'calc(-1 * var(--spacing10))', marginBottom: 'var(--spacing2)' }}>
+      {/* Pulled up over the empty built-in title row, which only takes text. */}
+      <span className="text-body-md-medium" style={{ color: 'var(--slateTextBody)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+      <Tooltip content={`Also in ${others.join(', ')}`}>
+        <span className="text-body-sm-regular" style={{ flex: 'none', padding: '1px var(--spacing1)', borderRadius: 'var(--radius4)', background: 'var(--blueSurfaceDefault)', color: 'var(--slateTextBody)', whiteSpace: 'nowrap' }}>+ {others.length} more</span>
+      </Tooltip>
+      <span style={{ flex: 1 }} />
+      <span ref={kebab} style={{ display: 'inline-flex' }}><Button iconOnly size="xs" variant="ghost" aria-label="More actions" aria-expanded={open} onClick={() => setOpen((o) => !o)}><Icon name="vmore" size={14} /></Button></span>
+      <Popover open={open} onClose={() => setOpen(false)} anchorRef={kebab} placement="bottom-end">
+        <Dropdown options={[{ value: 'remove', label: 'Remove from shared inbox' }]} onChange={() => { setOpen(false); onRemove?.() }} />
+      </Popover>
+    </div>
+  )
+}
+
 export type HomeRightPanelProps = {
   /** The inbox of the open conversation, shown as the panel heading. */
   inboxName: string
@@ -36,6 +60,9 @@ export type HomeRightPanelProps = {
   /** The last Follow or Unfollow failed: the old state stays, with Retry. */
   followError?: string
   onFollowRetry?: () => void
+  /** Other inboxes that hold this same email. When there are any, the heading shows "+N more" and a menu to remove it from this inbox. */
+  otherInboxes?: string[]
+  onRemoveFromInbox?: () => void
   people: HomePerson[]
   assignee: string
   onAssigneeChange: (value: string) => void
@@ -44,10 +71,11 @@ export type HomeRightPanelProps = {
 }
 
 /** The right panel of the Home page: the inbox, Follow (shared email), Assignee, Status, Tags, then Contact, Account, Related and Custom fields. */
-export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, status, onStatusChange, following, onFollowChange, followBusy, followError, onFollowRetry, people, assignee, onAssigneeChange, coAssigneeValue, onCoAssigneeChange }: HomeRightPanelProps) {
+export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, status, onStatusChange, following, onFollowChange, followBusy, followError, onFollowRetry, otherInboxes, onRemoveFromInbox, people, assignee, onAssigneeChange, coAssigneeValue, onCoAssigneeChange }: HomeRightPanelProps) {
   return (
     <RightPanel aria-label="Details" tabs={[{ id: 'shared-inbox', label: 'Shared Inbox', icon: 'sminbox' }]} customizeWidgets>
-      <RightPanelTop title={inboxName}>
+      <RightPanelTop title={otherInboxes?.length ? '' : inboxName}>
+        {otherInboxes && otherInboxes.length > 0 && <SharedHeading name={inboxName} others={otherInboxes} onRemove={onRemoveFromInbox} />}
         {following !== undefined && (
           <Row icon="view2" label="Follow">
             <Button size="xs" variant={following ? 'secondary-filled' : 'secondary'} disabled={followBusy} iconLeft={<Icon name="view2" size={16} />} aria-pressed={following} onClick={() => onFollowChange?.(!following)}>
