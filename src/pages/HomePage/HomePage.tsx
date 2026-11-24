@@ -83,14 +83,14 @@ const statusTag: Record<HomeStatus, { label: string; color: 'lightBlue' | 'yello
 const toListItem = (c: HomeConversation): ConversationListItem => ({ id: c.id, name: c.name, date: c.date, unread: c.unread, sla: c.sla, tags: c.tags, moreCount: c.moreCount, callDirection: c.call })
 
 /** The Shared Inbox part of the sidebar, built from the inboxes: each inbox gets its channel's views, counted by its conversations. */
-function sharedInboxItems(inboxes: HomeInbox[]) {
+function sharedInboxItems(inboxes: HomeInbox[], countOf: (inbox: HomeInbox, viewLabel: string) => number) {
   return inboxes.map((inbox) => ({
     id: keyOf(inbox),
     label: inbox.label,
     icon: channelIcons[inbox.channel],
     views: channelViews[inbox.channel].map((key) => {
       const v = viewLibrary[key]
-      return { id: `${keyOf(inbox)}-${v.id}`, label: v.label, icon: v.icon, count: v.hasCount ? inbox.conversations.length : undefined }
+      return { id: `${keyOf(inbox)}-${v.id}`, label: v.label, icon: v.icon, count: v.hasCount ? countOf(inbox, v.label) : undefined }
     }),
   }))
 }
@@ -125,7 +125,10 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   // Who owns each conversation. Assignment and following never start or stop each other.
   const [assignees, setAssignees] = useState<Record<string, string>>({})
   const [coAssignees, setCoAssignees] = useState<Record<string, string>>({})
-  const assigneeOf = (id: string) => assignees[id] ?? 'praveen'
+  const startAssignee = useMemo(() => Object.fromEntries(inboxes.flatMap((i) => i.conversations.map((c) => [c.id, c.assignee ?? 'praveen']))), [inboxes])
+  const assigneeOf = (id: string) => assignees[id] ?? startAssignee[id] ?? 'praveen'
+  // The conversations a view lists: Mine is yours, Unassigned has no owner, the other views list the whole inbox.
+  const inView = (inbox: HomeInbox, viewLabel?: string) => inbox.conversations.filter((c) => viewLabel === 'Mine' ? assigneeOf(c.id) === ME : viewLabel === 'Unassigned' ? assigneeOf(c.id) === NONE : true)
   const coAssigneeOf = (id: string) => coAssignees[id] ?? NONE
   // Inboxes the signed-in user has lost access to. Following never grants access.
   const [revoked, setRevoked] = useState<string[]>([])
@@ -228,7 +231,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const sections = useMemo<ConversationsSidebarSection[]>(() => {
     const base = sampleSections(true, first ? [first.channel] : [])
     return base.map((sec, n) => {
-      if (sec.title === 'Shared Inbox') return { ...sec, items: sharedInboxItems(accessible).map((it) => ({ ...it, defaultExpanded: first ? it.id === keyOf(first) : false })) }
+      if (sec.title === 'Shared Inbox') return { ...sec, items: sharedInboxItems(accessible, (i, label) => inView(i, label).length).map((it) => ({ ...it, defaultExpanded: first ? it.id === keyOf(first) : false })) }
       // Following sits right after My Work in the personal section, once the user has followed something.
       if (n === 0) return { ...sec, items: sec.items.flatMap((it) => {
         if (it.id !== MY_WORK) return [it]
@@ -237,7 +240,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
       }) }
       return sec
     })
-  }, [accessible, first, hasFollowed, myWorkEntries.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [accessible, first, hasFollowed, myWorkEntries.length, assignees]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Followed conversations, from every shared email inbox, with the inbox each one is in.
   const followedEntries = followed.flatMap((id) => accessible.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.filter((c) => c.id === id).map((c) => ({ inbox: i, conv: c }))))
@@ -251,7 +254,8 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     if (myWorkViews.includes(id)) { setSelected(myWorkEntries[0]?.conv.id); return }
     const itemId = sections.flatMap((sec) => sec.items).find((it) => it.views?.some((v) => v.id === id))?.id
     const inbox = itemId ? inboxOf(itemId) : undefined
-    setSelected(inbox && !hasNoList(id) ? inbox.conversations[0]?.id : undefined)
+    const label = sections.flatMap((sec) => sec.items).flatMap((it) => it.views ?? []).find((v) => v.id === id)?.label
+    setSelected(inbox && !hasNoList(id) ? inView(inbox, label)[0]?.id : undefined)
   }
   // The second line of each card is the latest message of its thread, as it stands now (a message you send shows with the reply arrow).
   const latestFor = (id: string): LatestMessage | undefined => {
@@ -286,7 +290,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     ? followedEntries.map(({ inbox: i, conv: c }) => ({ ...toListItem(c), preview: c.subject ?? '', sla: undefined, moreCount: undefined, tags: [{ label: i.label }, statusTag[statuses[c.id] ?? 'open']] }))
     : isMyWork
     ? myWorkEntries.map(({ inbox: i, conv: c }) => ({ ...toListItem(c), preview: c.subject ?? '', sla: undefined, moreCount: undefined, tags: [{ label: i.label }, { label: assigneeOf(c.id) === ME ? 'Assignee' : 'Co-assignee' }, statusTag[statuses[c.id] ?? 'open']] }))
-    : inbox ? withLatest(inbox.conversations.map(toListItem), latestFor) : []
+    : inbox ? withLatest(inView(inbox, currentView?.view.label).map(toListItem), latestFor) : []
   const color = avatarColors[Math.max(selectedIndex, 0) % avatarColors.length]
 
   return (
