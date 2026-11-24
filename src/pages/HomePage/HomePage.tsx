@@ -258,14 +258,16 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     setSelected(inbox && !hasNoList(id) ? inView(inbox, label)[0]?.id : undefined)
   }
   // The second line of each card is the latest message of its thread, as it stands now (a message you send shows with the reply arrow).
+  // Line breaks become spaces, so the preview reads past the greeting ("Hi, Our latest invoice…").
+  const flat = (text: string) => text.replace(/\s+/g, ' ').trim()
   const latestFor = (id: string): LatestMessage | undefined => {
     const chat = threads[id]?.filter((m) => m.kind === 'message')
     const lastChat = chat?.[chat.length - 1]
-    if (lastChat && lastChat.kind === 'message') return { text: lastChat.text, sent: lastChat.from === 'agent' }
+    if (lastChat && lastChat.kind === 'message') return { text: flat(lastChat.text), sent: lastChat.from === 'agent' }
     const slack = slackThreads[id]
-    if (slack?.length) return { text: slack[slack.length - 1].text, sent: slack[slack.length - 1].from === 'agent' }
+    if (slack?.length) return { text: flat(slack[slack.length - 1].text), sent: slack[slack.length - 1].from === 'agent' }
     const email = emailThreads[id]
-    if (email?.length) return { text: email[email.length - 1].body, sent: email[email.length - 1].email === emailAgentAddress }
+    if (email?.length) return { text: flat(email[email.length - 1].body), sent: email[email.length - 1].email === emailAgentAddress }
     return undefined
   }
 
