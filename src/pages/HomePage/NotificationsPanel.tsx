@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { Tabs } from '../../components/Tabs'
 import { Tooltip } from '../../components/Tooltip'
@@ -62,7 +61,7 @@ export function NotificationsPanel({ alerts, onOpen, onToggleRead, onMarkAllRead
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 'var(--spacing4)', borderBottom: '1px solid var(--slateBorderLight)' }}>
           <Tabs
             tabs={[
-              { value: 'unread', label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacing15)' }}>Unread <Badge>{unread.length}</Badge></span> },
+              { value: 'unread', label: 'Unread', count: String(unread.length) },
               { value: 'all', label: 'All' },
             ]}
             value={tab}
@@ -97,7 +96,7 @@ export function NotificationsPanel({ alerts, onOpen, onToggleRead, onMarkAllRead
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--spacing1)' }}>
                 <Tooltip content={a.read ? 'Mark as unread' : 'Mark as read'}>
                   <Button iconOnly variant="ghost" size="xs" aria-label={a.read ? 'Mark as unread' : 'Mark as read'} onClick={(e) => { e.stopPropagation(); onToggleRead(a) }}>
-                    <Icon name={a.read ? 'markasunread' : 'markasread'} size={12} />
+                    <Icon name={a.read ? 'markasunread' : 'markasread'} size={14} />
                   </Button>
                 </Tooltip>
                 <span className="text-body-sm-regular" style={{ color: 'var(--slateTextSubtle)', whiteSpace: 'nowrap' }}>{a.time}</span>
