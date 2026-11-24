@@ -40,7 +40,7 @@ function SharedHeading({ name, others, onRemove, onOpenInbox }: { name: string; 
       <Popover open={listOpen} onClose={() => setListOpen(false)} anchorRef={chip}>
         {/* Centred under the chip: the popover opens at the chip's left edge, so shift by half the list's width less half the chip's. */}
         <div style={{ transform: `translateX(calc(-50% + ${(chip.current?.offsetWidth ?? 0) / 2}px))` }}>
-          <Dropdown options={[name, ...others].map((label) => ({ value: label, label }))} onChange={(v: string | string[]) => { setListOpen(false); if (typeof v === 'string' && v !== name) onOpenInbox?.(v) }} />
+          <Dropdown options={[name, ...others].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((label) => ({ value: label, label }))} onChange={(v: string | string[]) => { setListOpen(false); if (typeof v === 'string' && v !== name) onOpenInbox?.(v) }} />
         </div>
       </Popover>
       <span style={{ flex: 1 }} />
