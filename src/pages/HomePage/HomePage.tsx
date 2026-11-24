@@ -243,6 +243,8 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
       if (sec.title === 'Shared Inbox') return { ...sec, items: sharedInboxItems(accessible, (i, label) => inView(i, label).length).map((it) => ({ ...it, defaultExpanded: it.id === expandedInbox })) }
       // Following sits right after My Work in the personal section, once the user has followed something.
       if (n === 0) return { ...sec, items: sec.items.flatMap((it) => {
+        // Personal is a plain row with nothing under it, so tapping it does nothing.
+        if (it.label === 'Personal') return [{ ...it, views: undefined }]
         if (it.id !== MY_WORK) return [it]
         const myWork = { ...it, count: String(myWorkEntries.length), views: it.views?.map((v) => ({ ...v, count: myWorkEntries.length })) }
         return hasFollowed ? [myWork, { id: FOLLOWING, label: 'Following', icon: 'view2' as const, count: String(followingCount) }] : [myWork]
