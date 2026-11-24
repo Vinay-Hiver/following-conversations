@@ -86,7 +86,7 @@ export const homeData: HomeData = {
       conversations: [
         // Mine: assigned to you (Alex).
         { id: 'email-15', name: 'Erin Hannon', date: 'Nov 13', assignee: 'alex', unread: true, subject: 'Invoice address is wrong', email: 'erin.hannon@example.com', messages: [customer('Hi,\n\nOur latest invoice still shows our old office address. Could you update it to 1725 Slough Avenue and resend?\n\nThanks,\nErin', 'Nov 13, 09:10 AM')] },
-        { id: 'email-16', name: 'Darryl Philbin', date: 'Nov 13', assignee: 'alex', sla: frt, subject: 'Bulk import failed halfway', email: 'darryl.philbin@example.com', messages: [customer('Hello,\n\nI imported 2,000 contacts from a CSV and it stopped at 1,140 with no error. Can you tell me what went wrong?\n\nDarryl', 'Nov 13, 08:30 AM')] },
+        { id: 'email-16', name: 'Darryl Philbin', date: 'Nov 13', assignee: 'alex', subject: 'Bulk import failed halfway', email: 'darryl.philbin@example.com', messages: [customer('Hello,\n\nI imported 2,000 contacts from a CSV and it stopped at 1,140 with no error. Can you tell me what went wrong?\n\nDarryl', 'Nov 13, 08:30 AM')] },
         { id: 'email-17', name: 'Holly Flax', date: 'Nov 12', assignee: 'alex', status: 'pending', subject: 'SSO setup for our team', email: 'holly.flax@example.com', messages: [customer('Hi there,\n\nWe would like to turn on single sign-on with Okta. What do you need from us?', 'Nov 12, 04:20 PM'), agent('Hi Holly,\n\nPlease send us your Okta metadata URL and we will set it up within a day.', 'Nov 12, 04:50 PM')] },
         // Unassigned: nobody owns these yet.
         // The common email: Michael copied both inboxes, so it is in Inbox 01 (email-1) and Inbox 02 (email-14). Following one copy does not follow the other.
