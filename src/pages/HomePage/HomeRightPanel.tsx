@@ -38,7 +38,10 @@ function SharedHeading({ name, others, onRemove }: { name: string; others: strin
         <button type="button" className="text-body-sm-regular" aria-expanded={listOpen} aria-label={`In ${others.length + 1} inboxes`} onClick={() => setListOpen((o) => !o)} style={{ padding: '1px var(--spacing1)', border: 0, borderRadius: 'var(--radius4)', background: 'var(--blueSurfaceDefault)', color: 'var(--slateTextBody)', whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: 'inherit' }}>+ {others.length} more</button>
       </span>
       <Popover open={listOpen} onClose={() => setListOpen(false)} anchorRef={chip}>
-        <Dropdown options={[name, ...others].map((label) => ({ value: label, label }))} onChange={() => setListOpen(false)} />
+        {/* Centred under the chip: the popover opens at the chip's left edge, so shift by half the list's width less half the chip's. */}
+        <div style={{ transform: `translateX(calc(-50% + ${(chip.current?.offsetWidth ?? 0) / 2}px))` }}>
+          <Dropdown options={[name, ...others].map((label) => ({ value: label, label }))} onChange={() => setListOpen(false)} />
+        </div>
       </Popover>
       <span style={{ flex: 1 }} />
       <span ref={kebab} style={{ display: 'inline-flex' }}><Button iconOnly size="xs" variant="ghost" aria-label="More actions" aria-expanded={open} onClick={() => setOpen((o) => !o)}><Icon name="vmore" size={14} /></Button></span>
