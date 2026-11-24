@@ -230,6 +230,9 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     setSelected(a.convId)
   }
 
+  // The inbox the sidebar opens expanded. Jumping to another inbox's copy expands that inbox (the sidebar is rebuilt to pick it up).
+  const [expandedInbox, setExpandedInbox] = useState(first ? keyOf(first) : '')
+  const [sidebarKey, setSidebarKey] = useState(0)
   // My Work: conversations you are assigned or co-assigned, from the inboxes you can reach. Its views (Live Queue, Standard Queue) all list them.
   const myWorkEntries = accessible.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.filter((c) => assigneeOf(c.id) === ME || coAssigneeOf(c.id) === ME).map((c) => ({ inbox: i, conv: c })))
   // Followed conversations you can still reach.
@@ -237,7 +240,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const sections = useMemo<ConversationsSidebarSection[]>(() => {
     const base = sampleSections(true, first ? [first.channel] : [])
     return base.map((sec, n) => {
-      if (sec.title === 'Shared Inbox') return { ...sec, items: sharedInboxItems(accessible, (i, label) => inView(i, label).length).map((it) => ({ ...it, defaultExpanded: first ? it.id === keyOf(first) : false })) }
+      if (sec.title === 'Shared Inbox') return { ...sec, items: sharedInboxItems(accessible, (i, label) => inView(i, label).length).map((it) => ({ ...it, defaultExpanded: it.id === expandedInbox })) }
       // Following sits right after My Work in the personal section, once the user has followed something.
       if (n === 0) return { ...sec, items: sec.items.flatMap((it) => {
         if (it.id !== MY_WORK) return [it]
@@ -246,7 +249,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
       }) }
       return sec
     })
-  }, [accessible, first, hasFollowed, myWorkEntries.length, assignees, followingCount]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [accessible, first, hasFollowed, expandedInbox, myWorkEntries.length, assignees, followingCount]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Followed conversations, from every shared email inbox, with the inbox each one is in.
   const followedEntries = followed.flatMap((id) => accessible.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.filter((c) => c.id === id).map((c) => ({ inbox: i, conv: c }))))
@@ -311,7 +314,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           if (id === 'notifications') { const open = !bellOpen; setBellOpen(open); setNavValue(open ? 'notifications' : 'conversations'); return }
           setBellOpen(false); setNavValue(id); onNavChange?.(id)
         }} user={{ initial: 'A', name: 'Alex' }} userMenu={navSampleUserMenu} />}
-        sidebar={<ConversationsSidebar sections={sections} value={view}
+        sidebar={<ConversationsSidebar key={sidebarKey} sections={sections} value={view}
           onChange={go}
           // Opening an inbox lands on its first view.
           onExpandedChange={(id, open) => { const firstView = sections.flatMap((sec) => sec.items).find((i) => i.id === id)?.views?.[0]; if (open && firstView) go(firstView.id) }}
@@ -334,6 +337,19 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           coAssigneeValue={selected ? coAssigneeOf(selected) : NONE}
           onCoAssigneeChange={(v) => selected && setCoAssignees((p) => ({ ...p, [selected]: v }))}
           otherInboxes={channel === 'email' ? otherInboxes : undefined}
+          onOpenInbox={(label) => {
+            // Go to that inbox, on the view that lists this email's copy (Mine or Unassigned), with the copy open.
+            const to = accessible.find((i) => i.label === label)
+            const copy = to?.conversations.find((c) => c.email === openEntry?.conv.email && c.subject === openEntry?.conv.subject)
+            if (!to || !copy) return
+            const views = sections.flatMap((sec) => sec.items).find((it) => it.id === keyOf(to))?.views ?? []
+            const v = views.find((x) => !hasNoList(x.id) && inView(to, x.label).some((c) => c.id === copy.id)) ?? views[0]
+            if (!v) return
+            setExpandedInbox(keyOf(to))
+            setSidebarKey((k) => k + 1)
+            setView(v.id)
+            setSelected(copy.id)
+          }}
           onRemoveFromInbox={() => {
             if (!selected) return
             setRemoved((p) => [...p, selected])

@@ -24,7 +24,7 @@ function Row({ icon, label, children, link }: { icon: IconName; label: string; c
 }
 
 /** The heading when the email is in more than one inbox (Figma "Container (Hiver)"): inbox name, "+N more", and a menu with Remove from shared inbox. */
-function SharedHeading({ name, others, onRemove }: { name: string; others: string[]; onRemove?: () => void }) {
+function SharedHeading({ name, others, onRemove, onOpenInbox }: { name: string; others: string[]; onRemove?: () => void; onOpenInbox?: (inbox: string) => void }) {
   const [open, setOpen] = useState(false)
   const kebab = useRef<HTMLSpanElement>(null)
   // "+N more" opens the list of every inbox this email is in.
@@ -40,7 +40,7 @@ function SharedHeading({ name, others, onRemove }: { name: string; others: strin
       <Popover open={listOpen} onClose={() => setListOpen(false)} anchorRef={chip}>
         {/* Centred under the chip: the popover opens at the chip's left edge, so shift by half the list's width less half the chip's. */}
         <div style={{ transform: `translateX(calc(-50% + ${(chip.current?.offsetWidth ?? 0) / 2}px))` }}>
-          <Dropdown options={[name, ...others].map((label) => ({ value: label, label }))} onChange={() => setListOpen(false)} />
+          <Dropdown options={[name, ...others].map((label) => ({ value: label, label }))} onChange={(v: string | string[]) => { setListOpen(false); if (typeof v === 'string' && v !== name) onOpenInbox?.(v) }} />
         </div>
       </Popover>
       <span style={{ flex: 1 }} />
@@ -71,6 +71,8 @@ export type HomeRightPanelProps = {
   /** Other inboxes that hold this same email. When there are any, the heading shows "+N more" and a menu to remove it from this inbox. */
   otherInboxes?: string[]
   onRemoveFromInbox?: () => void
+  /** Opens this email's copy in another inbox, by the inbox's name. */
+  onOpenInbox?: (inbox: string) => void
   people: HomePerson[]
   assignee: string
   onAssigneeChange: (value: string) => void
@@ -79,11 +81,11 @@ export type HomeRightPanelProps = {
 }
 
 /** The right panel of the Home page: the inbox, Follow (shared email), Assignee, Status, Tags, then Contact, Account, Related and Custom fields. */
-export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, status, onStatusChange, following, onFollowChange, followBusy, followError, onFollowRetry, otherInboxes, onRemoveFromInbox, people, assignee, onAssigneeChange, coAssigneeValue, onCoAssigneeChange }: HomeRightPanelProps) {
+export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, status, onStatusChange, following, onFollowChange, followBusy, followError, onFollowRetry, otherInboxes, onRemoveFromInbox, onOpenInbox, people, assignee, onAssigneeChange, coAssigneeValue, onCoAssigneeChange }: HomeRightPanelProps) {
   return (
     <RightPanel aria-label="Details" tabs={[{ id: 'shared-inbox', label: 'Shared Inbox', icon: 'sminbox' }]} customizeWidgets>
       <RightPanelTop title={otherInboxes?.length ? '' : inboxName}>
-        {otherInboxes && otherInboxes.length > 0 && <SharedHeading name={inboxName} others={otherInboxes} onRemove={onRemoveFromInbox} />}
+        {otherInboxes && otherInboxes.length > 0 && <SharedHeading name={inboxName} others={otherInboxes} onRemove={onRemoveFromInbox} onOpenInbox={onOpenInbox} />}
         {following !== undefined && (
           <Row icon="view2" label="Follow">
             <Button size="xs" variant={following ? 'secondary-filled' : 'secondary'} disabled={followBusy} iconLeft={<Icon name="view2" size={16} />} aria-pressed={following} onClick={() => onFollowChange?.(!following)}>
