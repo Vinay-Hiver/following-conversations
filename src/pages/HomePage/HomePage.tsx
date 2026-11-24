@@ -257,7 +257,11 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const myWorkViews = [MY_WORK, ...(sections.flatMap((sec) => sec.items).find((it) => it.id === MY_WORK)?.views?.map((v) => v.id) ?? [])]
   const inboxOf = (key: string) => inboxes.find((i) => keyOf(i) === key)
   // Going to a view selects the first conversation in it (Tags and All Views show no list).
+  // Prototype only: these sidebar entries are clickable but do nothing.
+  const inert = ['Team', 'Tickets', 'Tags', 'All Views', 'Personal', 'Sent', 'Drafts', 'Spam', 'All mail']
   const go = (id: string) => {
+    const entry = sections.flatMap((sec) => sec.items).flatMap((it) => [it, ...(it.views ?? [])]).find((x) => x.id === id)
+    if (entry && inert.includes(entry.label)) return
     setView(id)
     if (id === FOLLOWING) { setSelected(followedEntries[0]?.conv.id); return }
     if (myWorkViews.includes(id)) { setSelected(myWorkEntries[0]?.conv.id); return }
