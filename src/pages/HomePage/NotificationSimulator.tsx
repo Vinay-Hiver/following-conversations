@@ -12,10 +12,10 @@ export type SimulatorSection<E extends string> = { title: string; items: { event
 
 export const notificationSections: SimulatorSection<SimulatedEvent>[] = [
   { title: 'Closed', items: [
-    { event: 'teammate-closes', label: 'Closed by a teammate', note: 'Praveen Borawar closes it' },
+    { event: 'teammate-closes', label: 'Closed by a teammate', note: 'Adam closes it' },
   ] },
   { title: 'Reopened', items: [
-    { event: 'teammate-reopens', label: 'Reopened by a teammate', note: 'Praveen Borawar reopens it' },
+    { event: 'teammate-reopens', label: 'Reopened by a teammate', note: 'Adam reopens it' },
     { event: 'customer-reopens', label: 'Reopened by a customer reply', note: 'The customer replies after it was closed' },
   ] },
   { title: 'No notification', items: [

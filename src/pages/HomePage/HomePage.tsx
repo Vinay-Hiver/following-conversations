@@ -15,7 +15,7 @@ import { channelViews, viewLibrary } from '../../patterns/ConversationsSidebar/d
 import { sampleSections } from '../../patterns/ConversationsSidebar/sampleData'
 import { EmailConversation } from '../../patterns/EmailConversation'
 import type { EmailThreadMessage } from '../../patterns/EmailConversation'
-import { agentEmail, emailAgentAddress, scheduleEmailReply } from '../../patterns/EmailConversation/emailThread'
+import { agentEmail, scheduleEmailReply } from '../../patterns/EmailConversation/emailThread'
 import { MainNav } from '../../patterns/MainNav'
 import { navSampleFooterItems, navSampleItems, navSampleUserMenu } from '../../patterns/MainNav/sampleData'
 import { PageLayout } from '../../patterns/PageLayout'
@@ -51,14 +51,19 @@ const chatThread = (c: HomeConversation, channel: ConversationChannel): ChatThre
   c.messages.map((m, i) => ({ id: String(i + 1), kind: 'message', from: m.from === 'customer' ? 'user' : 'agent', text: m.text, time: m.time, agentName: m.from === 'agent' ? 'Perry' : undefined, status: channel === 'whatsapp' && m.from === 'agent' ? m.status ?? 'sent' : undefined }))
 const slackThread = (c: HomeConversation): SlackThreadItem[] => c.messages.map((m, i) => ({ id: String(i + 1), from: m.from === 'customer' ? 'user' : 'agent', text: m.text, time: m.time, reactions: m.reactions }))
 const customerAddress = (c: HomeConversation) => c.email ?? `${c.name.toLowerCase().replace(/[^a-z]+/g, '.')}@example.com`
-const emailThread = (c: HomeConversation, color: AvatarColor): EmailThreadMessage[] => c.messages.map((m, i) => ({ id: String(i + 1), email: m.from === 'customer' ? customerAddress(c) : emailAgentAddress, avatarColor: m.from === 'customer' ? color : 'lightBlue', time: m.time, body: m.text }))
+/** The team's addresses. Alex is the signed-in user; Adam and Amy are teammates. */
+const agentAddress = { alex: 'alex@acme.com', adam: 'adam@acme.com', amy: 'amy@acme.com' } as const
+const agentAddresses: string[] = Object.values(agentAddress)
+/** Who answered a conversation: Alex on his own (Mine); otherwise Adam in the first inbox, Amy in the second. */
+const agentFor = (c: HomeConversation, inboxIndex: number) => (c.assignee === 'alex' ? agentAddress.alex : inboxIndex % 2 ? agentAddress.amy : agentAddress.adam)
+const emailThread = (c: HomeConversation, color: AvatarColor, inboxIndex = 0): EmailThreadMessage[] => c.messages.map((m, i) => ({ id: String(i + 1), email: m.from === 'customer' ? customerAddress(c) : agentFor(c, inboxIndex), avatarColor: m.from === 'customer' ? color : 'lightBlue', time: m.time, body: m.text }))
 
 const FOLLOWING = 'following'
 const MY_WORK = 'my-work'
 /** The signed-in user, and the people in the Assignee and Co-assignee lists. */
 const ME = 'alex'
 const NONE = 'none'
-const people: HomePerson[] = [{ value: ME, label: 'Alex (you)', color: 'violet' }, { value: 'praveen', label: 'Praveen Borawar', color: 'orange' }, { value: 'priya', label: 'Priya Nair', color: 'green' }]
+const people: HomePerson[] = [{ value: ME, label: 'Alex (you)', color: 'violet' }, { value: 'adam', label: 'Adam', color: 'orange' }, { value: 'amy', label: 'Amy', color: 'green' }]
 /** Prototype only: scenarios from the PRD's edge cases, played from the bottom bar. */
 type ScenarioEvent = 'co-assign-me' | 'co-assign-ends' | 'assign-me' | 'unassign-me' | 'lose-access' | 'restore-access' | 'fail-next'
 const scenarioSections = (failArmed: boolean, anyRevoked: boolean): SimulatorSection<ScenarioEvent>[] => [
@@ -77,7 +82,7 @@ const scenarioSections = (failArmed: boolean, anyRevoked: boolean): SimulatorSec
   ] },
 ]
 /** Prototype only: the teammate who changes a conversation in the simulator. */
-const TEAMMATE = 'Praveen Borawar'
+const TEAMMATE = 'Adam'
 const statusTag: Record<HomeStatus, { label: string; color: 'lightBlue' | 'yellow' | 'green' }> = { open: { label: 'Open', color: 'lightBlue' }, pending: { label: 'Pending', color: 'yellow' }, closed: { label: 'Closed', color: 'green' } }
 
 /** The card of a conversation in the list. */
@@ -129,8 +134,8 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   // Who owns each conversation. Assignment and following never start or stop each other.
   const [assignees, setAssignees] = useState<Record<string, string>>({})
   const [coAssignees, setCoAssignees] = useState<Record<string, string>>({})
-  const startAssignee = useMemo(() => Object.fromEntries(inboxes.flatMap((i) => i.conversations.map((c) => [c.id, c.assignee ?? 'praveen']))), [inboxes])
-  const assigneeOf = (id: string) => assignees[id] ?? startAssignee[id] ?? 'praveen'
+  const startAssignee = useMemo(() => Object.fromEntries(inboxes.flatMap((i) => i.conversations.map((c) => [c.id, c.assignee ?? 'adam']))), [inboxes])
+  const assigneeOf = (id: string) => assignees[id] ?? startAssignee[id] ?? 'adam'
   // The conversations a view lists: Mine is yours, Unassigned has no owner. Team and Tickets are empty in this prototype.
   const inView = (inbox: HomeInbox, viewLabel?: string) => inbox.conversations.filter((c) => viewLabel === 'Mine' ? assigneeOf(c.id) === ME : viewLabel === 'Unassigned' ? assigneeOf(c.id) === NONE : viewLabel === 'Team' || viewLabel === 'Tickets' ? false : true)
   const coAssigneeOf = (id: string) => coAssignees[id] ?? NONE
@@ -151,7 +156,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
       setFollow(id, on)
     }, 600)
   }
-  const [emailThreads, setEmailThreads] = useState<Record<string, EmailThreadMessage[]>>(() => Object.fromEntries(inboxes.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.map((c, n) => [c.id, emailThread(c, avatarColors[n % avatarColors.length])]))))
+  const [emailThreads, setEmailThreads] = useState<Record<string, EmailThreadMessage[]>>(() => Object.fromEntries(inboxes.filter((i) => i.channel === 'email').flatMap((i, k) => i.conversations.map((c, n) => [c.id, emailThread(c, avatarColors[n % avatarColors.length], k)]))))
 
   // Follower alerts in the bell. Only entering or leaving Closed alerts a follower; Open <-> Pending does not.
   const [alerts, setAlerts] = useState<FollowerAlert[]>([])
@@ -212,7 +217,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     if (event === 'co-assign-me') setCoAssignees((p) => ({ ...p, [id]: ME }))
     if (event === 'co-assign-ends') setCoAssignees((p) => ({ ...p, [id]: NONE }))
     if (event === 'assign-me') setAssignees((p) => ({ ...p, [id]: ME }))
-    if (event === 'unassign-me') setAssignees((p) => ({ ...p, [id]: 'praveen' }))
+    if (event === 'unassign-me') setAssignees((p) => ({ ...p, [id]: 'adam' }))
     if (event === 'lose-access') {
       setRevoked((p) => [...p, keyOf(entry.inbox)])
       // Stay on the conversation, like an old link: it now shows that you have no access.
@@ -282,7 +287,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     const slack = slackThreads[id]
     if (slack?.length) return { text: flat(slack[slack.length - 1].text), sent: slack[slack.length - 1].from === 'agent' }
     const email = emailThreads[id]
-    if (email?.length) return { text: flat(email[email.length - 1].body), sent: email[email.length - 1].email === emailAgentAddress }
+    if (email?.length) return { text: flat(email[email.length - 1].body), sent: agentAddresses.includes(email[email.length - 1].email) }
     return undefined
   }
 
@@ -338,7 +343,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           followError={followError && followError.id === selected ? `Couldn't ${followError.on ? 'follow' : 'unfollow'} this conversation.` : undefined}
           onFollowRetry={() => followError && requestFollow(followError.id, followError.on)}
           people={people}
-          assignee={selected ? assigneeOf(selected) : 'praveen'}
+          assignee={selected ? assigneeOf(selected) : 'adam'}
           onAssigneeChange={(v) => selected && setAssignees((p) => ({ ...p, [selected]: v }))}
           coAssigneeValue={selected ? coAssigneeOf(selected) : NONE}
           onCoAssigneeChange={(v) => selected && setCoAssignees((p) => ({ ...p, [selected]: v }))}
@@ -393,6 +398,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
               <EmailConversation
                 key={selected}
                 subject={selectedConv.subject ?? 'No subject'}
+                inboxEmail={`${inbox.label.toLowerCase().replace(/\s+/g, '')}@acme.com`}
                 messages={emailThreads[selected] ?? []}
                 actions={followPlacement === 'toolbar' ? (
                   <>
@@ -410,7 +416,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
                 ) : undefined}
                 onSend={(text) => {
                   const id = selected
-                  setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), agentEmail(text)] }))
+                  setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), { ...agentEmail(text), email: agentAddress.alex }] }))
                   scheduleEmailReply(customerAddress(selectedConv), color, (reply) => { setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), reply] })); customerReplied(id) })
                 }}
               />

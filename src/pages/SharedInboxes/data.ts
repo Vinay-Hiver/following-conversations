@@ -28,8 +28,8 @@ export const sharedInboxChannels: InboxChannel[] = [
   {
     id: 'email', label: 'Email Inboxes', singular: 'Email Inbox', icon: 'mailbox',
     inboxes: [
-      { id: 'email-1', name: 'Email 01', email: 'email01@acme.com', accountType: 'Outlook User Account' },
-      { id: 'email-2', name: 'Email 02', email: 'email02@acme.com', accountType: 'Outlook Shared Mailbox' },
+      { id: 'email-1', name: 'Inbox 01', email: 'inbox01@acme.com', accountType: 'Outlook User Account' },
+      { id: 'email-2', name: 'Inbox 02', email: 'inbox02@acme.com', accountType: 'Outlook Shared Mailbox' },
     ],
   },
 ]

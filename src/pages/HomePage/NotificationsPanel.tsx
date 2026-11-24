@@ -12,7 +12,7 @@ export type FollowerAlert = {
   kind: 'closed' | 'reopened'
   subject: string
   inbox: string
-  /** Who or what changed it, for example "Praveen Borawar" or "a customer reply". */
+  /** Who or what changed it, for example "Adam" or "a customer reply". */
   by: string
   time: string
   read: boolean
