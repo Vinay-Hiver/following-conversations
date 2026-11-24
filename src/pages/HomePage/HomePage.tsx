@@ -19,12 +19,13 @@ import { agentEmail, emailAgentAddress, scheduleEmailReply } from '../../pattern
 import { MainNav } from '../../patterns/MainNav'
 import { navSampleFooterItems, navSampleItems, navSampleUserMenu } from '../../patterns/MainNav/sampleData'
 import { PageLayout } from '../../patterns/PageLayout'
-import { ExampleRightPanel } from '../../patterns/RightPanel/sampleData'
+import { EmptyState } from '../../patterns/EmptyState'
 import { SlackConversation } from '../../patterns/SlackConversation'
 import type { SlackThreadItem } from '../../patterns/SlackConversation'
 import { addReaction, agentMessage, deleteMessage, removeReaction, scheduleSlackReply } from '../../patterns/SlackConversation/slackThread'
+import { HomeRightPanel } from './HomeRightPanel'
 import { homeData } from './homeData'
-import type { HomeConversation, HomeData, HomeInbox } from './homeData'
+import type { HomeConversation, HomeData, HomeInbox, HomeStatus } from './homeData'
 
 const avatarColors: AvatarColor[] = ['violet', 'lightBlue', 'green', 'orange', 'purple', 'red', 'yellow', 'grey']
 const channelIcons: Record<ConversationChannel, IconName> = { chat: 'chatinbox', slack: 'slack', whatsapp: 'whatsapp', sms: 'sms', email: 'mailbox', voice: 'voice' }
@@ -41,6 +42,9 @@ const chatThread = (c: HomeConversation, channel: ConversationChannel): ChatThre
 const slackThread = (c: HomeConversation): SlackThreadItem[] => c.messages.map((m, i) => ({ id: String(i + 1), from: m.from === 'customer' ? 'user' : 'agent', text: m.text, time: m.time, reactions: m.reactions }))
 const customerAddress = (c: HomeConversation) => c.email ?? `${c.name.toLowerCase().replace(/[^a-z]+/g, '.')}@example.com`
 const emailThread = (c: HomeConversation, color: AvatarColor): EmailThreadMessage[] => c.messages.map((m, i) => ({ id: String(i + 1), email: m.from === 'customer' ? customerAddress(c) : emailAgentAddress, avatarColor: m.from === 'customer' ? color : 'lightBlue', time: m.time, body: m.text }))
+
+const FOLLOWING = 'following'
+const statusTag: Record<HomeStatus, { label: string; color: 'lightBlue' | 'yellow' | 'green' }> = { open: { label: 'Open', color: 'lightBlue' }, pending: { label: 'Pending', color: 'yellow' }, closed: { label: 'Closed', color: 'green' } }
 
 /** The card of a conversation in the list. */
 const toListItem = (c: HomeConversation): ConversationListItem => ({ id: c.id, name: c.name, date: c.date, unread: c.unread, sla: c.sla, tags: c.tags, moreCount: c.moreCount, callDirection: c.call })
@@ -74,17 +78,35 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const [selected, setSelected] = useState<string | undefined>(first?.conversations[0]?.id)
   const [threads, setThreads] = useState<Record<string, ChatThreadItem[]>>(() => Object.fromEntries(inboxes.filter((i) => isChat(i.channel)).flatMap((i) => i.conversations.map((c) => [c.id, chatThread(c, i.channel)]))))
   const [slackThreads, setSlackThreads] = useState<Record<string, SlackThreadItem[]>>(() => Object.fromEntries(inboxes.filter((i) => i.channel === 'slack').flatMap((i) => i.conversations.map((c) => [c.id, slackThread(c)]))))
+  // Statuses, so the Status field and the Following list agree.
+  const [statuses, setStatuses] = useState<Record<string, HomeStatus>>(() => Object.fromEntries(inboxes.flatMap((i) => i.conversations.map((c) => [c.id, c.status ?? 'open']))))
+  // Conversations the signed-in user follows, newest follow first. The Following tab shows after the first follow and stays.
+  const [followed, setFollowed] = useState<string[]>([])
+  const [hasFollowed, setHasFollowed] = useState(false)
+  const setFollow = (id: string, on: boolean) => {
+    setFollowed((prev) => (on ? (prev.includes(id) ? prev : [id, ...prev]) : prev.filter((x) => x !== id)))
+    if (on) setHasFollowed(true)
+  }
   const [emailThreads, setEmailThreads] = useState<Record<string, EmailThreadMessage[]>>(() => Object.fromEntries(inboxes.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.map((c, n) => [c.id, emailThread(c, avatarColors[n % avatarColors.length])]))))
 
   const sections = useMemo<ConversationsSidebarSection[]>(() => {
     const base = sampleSections(true, first ? [first.channel] : [])
-    return base.map((sec) => (sec.title === 'Shared Inbox' ? { ...sec, items: sharedInboxItems(inboxes).map((it) => ({ ...it, defaultExpanded: first ? it.id === keyOf(first) : false })) } : sec))
-  }, [inboxes, first])
+    return base.map((sec, n) => {
+      if (sec.title === 'Shared Inbox') return { ...sec, items: sharedInboxItems(inboxes).map((it) => ({ ...it, defaultExpanded: first ? it.id === keyOf(first) : false })) }
+      // Following sits right after My Work in the personal section, once the user has followed something.
+      if (n === 0 && hasFollowed) return { ...sec, items: sec.items.flatMap((it) => (it.id === 'my-work' ? [it, { id: FOLLOWING, label: 'Following', icon: 'view2' as const }] : [it])) }
+      return sec
+    })
+  }, [inboxes, first, hasFollowed])
+
+  // Followed conversations, from every shared email inbox, with the inbox each one is in.
+  const followedEntries = followed.flatMap((id) => inboxes.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.filter((c) => c.id === id).map((c) => ({ inbox: i, conv: c }))))
 
   const inboxOf = (key: string) => inboxes.find((i) => keyOf(i) === key)
   // Going to a view selects the first conversation in it (Tags and All Views show no list).
   const go = (id: string) => {
     setView(id)
+    if (id === FOLLOWING) { setSelected(followedEntries[0]?.conv.id); return }
     const itemId = sections.flatMap((sec) => sec.items).find((it) => it.views?.some((v) => v.id === id))?.id
     const inbox = itemId ? inboxOf(itemId) : undefined
     setSelected(inbox && !hasNoList(id) ? inbox.conversations[0]?.id : undefined)
@@ -103,10 +125,16 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
 
   // The inbox and view being shown, found from the sidebar's own data.
   const currentView = sections.flatMap((sec) => sec.items).flatMap((item) => (item.views ?? []).map((v) => ({ inbox: inboxOf(item.id), view: v }))).find((x) => x.view.id === view && x.inbox && !hasNoList(view))
-  const inbox = currentView?.inbox
+  const isFollowing = view === FOLLOWING
+  // The open conversation and its inbox. In Following it can come from any email inbox, and stays open after Unfollow.
+  const openEntry = inboxes.flatMap((i) => i.conversations.map((c) => ({ inbox: i, conv: c }))).find((e) => e.conv.id === selected)
+  const inbox = isFollowing ? openEntry?.inbox ?? followedEntries[0]?.inbox : currentView?.inbox
   const channel = inbox?.channel
   const selectedConv = inbox?.conversations.find((c) => c.id === selected)
   const selectedIndex = inbox && selected ? inbox.conversations.findIndex((c) => c.id === selected) : 0
+  const listItems = isFollowing
+    ? followedEntries.map(({ inbox: i, conv: c }) => ({ ...toListItem(c), preview: c.subject ?? '', sla: undefined, moreCount: undefined, tags: [{ label: i.label }, statusTag[statuses[c.id] ?? 'open']] }))
+    : inbox ? withLatest(inbox.conversations.map(toListItem), latestFor) : []
   const color = avatarColors[Math.max(selectedIndex, 0) % avatarColors.length]
 
   return (
@@ -120,14 +148,30 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           // Opening an inbox lands on its first view.
           onExpandedChange={(id, open) => { const firstView = sections.flatMap((sec) => sec.items).find((i) => i.id === id)?.views?.[0]; if (open && firstView) go(firstView.id) }}
         />}
-        rightPanel={<ExampleRightPanel open={['contact', 'custom']} coAssignee={channel === 'email'} customFields={customFields} contact={selectedConv ? { name: selectedConv.name, email: channel === 'email' ? customerAddress(selectedConv) : selectedConv.email } : undefined} />}
+        rightPanel={<HomeRightPanel
+          inboxName={inbox?.label ?? ''}
+          coAssignee={channel === 'email'}
+          customFields={customFields}
+          contact={selectedConv ? { name: selectedConv.name, email: channel === 'email' ? customerAddress(selectedConv) : selectedConv.email } : undefined}
+          status={(selected && statuses[selected]) || 'open'}
+          onStatusChange={(s) => selected && setStatuses((prev) => ({ ...prev, [selected]: s }))}
+          following={channel === 'email' && selected ? followed.includes(selected) : undefined}
+          onFollowChange={(on) => selected && setFollow(selected, on)}
+        />}
       >
-        {currentView && inbox && channel && (
+        {isFollowing && followedEntries.length === 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <EmptyState icon="email" title="No followed conversations" description="Open a conversation in a shared email inbox and choose Follow to keep an eye on it here." />
+          </div>
+        )}
+        {(isFollowing ? followedEntries.length > 0 : currentView) && inbox && channel && (
           <div style={{ display: 'flex', height: '100%' }}>
             <ConversationList
-              title={currentView.view.label}
+              title={isFollowing ? 'Following' : currentView?.view.label ?? ''}
+              icon={isFollowing ? 'view2' : undefined}
+              subtitle={isFollowing ? 'Shared email inboxes' : undefined}
               channel={channel}
-              conversations={withLatest(inbox.conversations.map(toListItem), latestFor)}
+              conversations={listItems}
               selectedId={selected}
               onSelect={setSelected}
               onIconClick={() => setSidebarCollapsed((c) => !c)}

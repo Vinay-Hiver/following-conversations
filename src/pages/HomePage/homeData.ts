@@ -24,6 +24,9 @@ export type HomeMessage = {
   reactions?: Record<string, number>
 }
 
+/** The status of a conversation, as the Status field shows it. */
+export type HomeStatus = 'open' | 'pending' | 'closed'
+
 export type HomeConversation = {
   /** Unique across the whole page, for example "sms-1". */
   id: string
@@ -33,6 +36,8 @@ export type HomeConversation = {
   date: string
   /** Oldest first. Voice conversations have no messages. */
   messages: HomeMessage[]
+  /** The status it starts in. Open when left out. */
+  status?: HomeStatus
   /** Starts unread: a blue dot and a bolder card until it is opened. */
   unread?: boolean
   /** SLA pills on the card, for example [{ kind: 'frt', status: 'overdue' }]. */
@@ -81,9 +86,9 @@ export const homeData: HomeData = {
         { id: 'email-2', name: 'Dwight Schrute', date: 'Nov 12', subject: 'Where is the onboarding checklist?', email: 'dwight.schrute@example.com', unread: true, messages: [customer('Hello,\n\nWe just signed up and I cannot find the onboarding checklist mentioned in the welcome email. Where can I find it?\n\nDwight', 'Nov 12, 08:10 AM')] },
         { id: 'email-3', name: 'Pam Beesly', date: 'Nov 12', subject: 'Adding a new teammate', email: 'pam.beesly@example.com', tags: low, messages: [customer('Hi,\n\nHow do I invite a new teammate to our workspace? The invite button is greyed out for me.', 'Nov 12, 07:55 AM'), agent('Hi Pam,\n\nOnly admins can send invites. I have asked your account admin to update your role, after which the button will be enabled.', 'Nov 12, 08:20 AM')] },
         { id: 'email-4', name: 'Jim Halpert', date: 'Nov 11', subject: 'Password reset link expired', email: 'jim.halpert@example.com', unread: true, sla: frt, messages: [customer('Hello,\n\nThe password reset link I received has already expired. Could you send me a new one?\n\nJim', 'Nov 11, 06:40 PM')] },
-        { id: 'email-5', name: 'Angela Martin', date: 'Nov 11', subject: 'Request for a W-9 form', email: 'angela.martin@example.com', messages: [customer('Good afternoon,\n\nOur accounting team needs a copy of your W-9 for our vendor records. Please send it at your earliest convenience.', 'Nov 11, 02:15 PM'), agent('Hi Angela,\n\nPlease find our W-9 attached. Let me know if you need anything else.', 'Nov 11, 03:00 PM'), customer('Received, thank you.', 'Nov 11, 03:12 PM')] },
+        { id: 'email-5', name: 'Angela Martin', date: 'Nov 11', status: 'closed', subject: 'Request for a W-9 form', email: 'angela.martin@example.com', messages: [customer('Good afternoon,\n\nOur accounting team needs a copy of your W-9 for our vendor records. Please send it at your earliest convenience.', 'Nov 11, 02:15 PM'), agent('Hi Angela,\n\nPlease find our W-9 attached. Let me know if you need anything else.', 'Nov 11, 03:00 PM'), customer('Received, thank you.', 'Nov 11, 03:12 PM')] },
         { id: 'email-6', name: 'Kevin Malone', date: 'Nov 10', subject: 'Export not downloading', email: 'kevin.malone@example.com', unread: true, messages: [customer('Hi,\n\nI clicked export on the reports page but nothing downloads. I tried two browsers.\n\nKevin', 'Nov 10, 11:30 AM')] },
-        { id: 'email-7', name: 'Oscar Martinez', date: 'Nov 10', subject: 'Switching to annual billing', email: 'oscar.martinez@example.com', messages: [customer('Hello,\n\nWe would like to switch from monthly to annual billing. Will the unused part of this month be credited?', 'Nov 10, 09:05 AM'), agent('Hi Oscar,\n\nYes, the remaining days of this month will be credited toward your annual plan. I can make the switch today if you confirm.', 'Nov 10, 09:40 AM')] },
+        { id: 'email-7', name: 'Oscar Martinez', date: 'Nov 10', status: 'pending', subject: 'Switching to annual billing', email: 'oscar.martinez@example.com', messages: [customer('Hello,\n\nWe would like to switch from monthly to annual billing. Will the unused part of this month be credited?', 'Nov 10, 09:05 AM'), agent('Hi Oscar,\n\nYes, the remaining days of this month will be credited toward your annual plan. I can make the switch today if you confirm.', 'Nov 10, 09:40 AM')] },
       ],
     },
     {
@@ -92,8 +97,8 @@ export const homeData: HomeData = {
         { id: 'email-8', name: 'Stanley Hudson', date: 'Nov 12', subject: 'Cannot log in after update', email: 'stanley.hudson@example.com', unread: true, sla: frt, tags: high, messages: [customer('Hello,\n\nSince this morning I cannot log in. The page just reloads after I enter my password.\n\nStanley', 'Nov 12, 10:15 AM')] },
         { id: 'email-9', name: 'Ryan Howard', date: 'Nov 12', subject: 'Question about API limits', email: 'ryan.howard@example.com', messages: [customer('Hi,\n\nWhat are the rate limits on your API for the Pro plan? We are planning an integration.', 'Nov 12, 09:00 AM'), agent('Hi Ryan,\n\nThe Pro plan allows 600 requests per minute. I have attached our API guide with the details.', 'Nov 12, 09:30 AM')] },
         { id: 'email-10', name: 'Kelly Kapoor', date: 'Nov 11', subject: 'Change the email on my account', email: 'kelly.kapoor@example.com', unread: true, messages: [customer('Hi there,\n\nI got married and need to change the email address on my account. Can you help?\n\nKelly', 'Nov 11, 05:20 PM')] },
-        { id: 'email-11', name: 'Toby Flenderson', date: 'Nov 11', subject: 'Data retention policy', email: 'toby.flenderson@example.com', tags: low, messages: [customer('Hello,\n\nCould you share your data retention policy? Our compliance team needs it for review.', 'Nov 11, 01:10 PM'), agent('Hi Toby,\n\nPlease find our data retention policy attached. We keep customer data for the length of the contract plus 30 days.', 'Nov 11, 02:00 PM'), customer('Perfect, thanks for the quick reply.', 'Nov 11, 02:25 PM')] },
-        { id: 'email-12', name: 'Meredith Palmer', date: 'Nov 10', subject: 'Notifications not arriving', email: 'meredith.palmer@example.com', messages: [customer('Hi,\n\nI stopped getting email notifications for new assignments last week.', 'Nov 10, 04:45 PM'), agent('Hi Meredith,\n\nIt looks like notifications were turned off in your profile settings. I have turned them back on for you.', 'Nov 10, 05:10 PM')] },
+        { id: 'email-11', name: 'Toby Flenderson', date: 'Nov 11', status: 'closed', subject: 'Data retention policy', email: 'toby.flenderson@example.com', tags: low, messages: [customer('Hello,\n\nCould you share your data retention policy? Our compliance team needs it for review.', 'Nov 11, 01:10 PM'), agent('Hi Toby,\n\nPlease find our data retention policy attached. We keep customer data for the length of the contract plus 30 days.', 'Nov 11, 02:00 PM'), customer('Perfect, thanks for the quick reply.', 'Nov 11, 02:25 PM')] },
+        { id: 'email-12', name: 'Meredith Palmer', date: 'Nov 10', status: 'pending', subject: 'Notifications not arriving', email: 'meredith.palmer@example.com', messages: [customer('Hi,\n\nI stopped getting email notifications for new assignments last week.', 'Nov 10, 04:45 PM'), agent('Hi Meredith,\n\nIt looks like notifications were turned off in your profile settings. I have turned them back on for you.', 'Nov 10, 05:10 PM')] },
         { id: 'email-13', name: 'Andy Bernard', date: 'Nov 10', subject: 'Cancel my subscription', email: 'andy.bernard@example.com', unread: true, messages: [customer('Hello,\n\nPlease cancel my subscription at the end of this billing cycle.\n\nAndy', 'Nov 10, 10:00 AM')] },
       ],
     },
