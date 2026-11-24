@@ -192,18 +192,20 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   }
   // A customer reply reopens a closed conversation: one reopen alert, no separate reply alert. A reply to an open one alerts no one.
   const customerReplied = (id: string) => { if ((live.current.statuses[id] ?? 'open') === 'closed') changeStatus(id, 'open', 'a customer reply') }
-  // Prototype only: play a follower event. It lands on the open email conversation if you follow it, else the newest one you follow, else the first email conversation (which you then follow).
-  const target = () => {
+  // Prototype only: play a follower event on the open conversation (see target).
+  // Prototype only: the conversation a played event lands on. The open email conversation if there is one, else the newest you follow, else the first email.
+  // Notifications need a follower, so they follow it first; Scenarios leave Follow as it is.
+  const target = (follow: boolean) => {
     const emailIds = accessible.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.map((c) => c.id))
     const f = live.current.followed.filter((x) => emailIds.includes(x))
-    const id = selected && f.includes(selected) ? selected : f[0] ?? emailIds[0]
+    const id = selected && emailIds.includes(selected) ? selected : f[0] ?? emailIds[0]
     const entry = id ? findConv(id) : undefined
     if (!entry) return undefined
-    if (!f.includes(id)) { live.current = { ...live.current, followed: [id, ...live.current.followed] }; setFollow(id, true) }
+    if (follow && !f.includes(id)) { live.current = { ...live.current, followed: [id, ...live.current.followed] }; setFollow(id, true) }
     return { id, entry }
   }
   const playEvent = (event: SimulatedEvent) => {
-    const t = target()
+    const t = target(true)
     if (!t) return
     const { id, entry } = t
     const status = () => live.current.statuses[id] ?? 'open'
@@ -222,7 +224,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const playScenario = (event: ScenarioEvent) => {
     if (event === 'fail-next') { setFailNext(true); return }
     if (event === 'restore-access') { setRevoked([]); return }
-    const t = target()
+    const t = target(false)
     if (!t) return
     const { id, entry } = t
     if (event === 'co-assign-me') setCoAssignees((p) => ({ ...p, [id]: ME }))
