@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { AvatarColor } from '../../components/Avatar'
 import type { ConversationChannel } from '../../components/ConversationCard'
 import type { IconName } from '../../icons/iconData'
@@ -28,6 +28,8 @@ import { SlackConversation } from '../../patterns/SlackConversation'
 import type { SlackThreadItem } from '../../patterns/SlackConversation'
 import { addReaction, agentMessage, deleteMessage, removeReaction, scheduleSlackReply } from '../../patterns/SlackConversation/slackThread'
 import { HomeRightPanel } from './HomeRightPanel'
+import { NotificationsPanel } from './NotificationsPanel'
+import type { FollowerAlert } from './NotificationsPanel'
 import { homeData } from './homeData'
 import type { HomeConversation, HomeData, HomeInbox, HomeStatus } from './homeData'
 
@@ -48,6 +50,8 @@ const customerAddress = (c: HomeConversation) => c.email ?? `${c.name.toLowerCas
 const emailThread = (c: HomeConversation, color: AvatarColor): EmailThreadMessage[] => c.messages.map((m, i) => ({ id: String(i + 1), email: m.from === 'customer' ? customerAddress(c) : emailAgentAddress, avatarColor: m.from === 'customer' ? color : 'lightBlue', time: m.time, body: m.text }))
 
 const FOLLOWING = 'following'
+/** Prototype only: the teammate who changes a conversation in the simulator. */
+const TEAMMATE = 'Praveen Borawar'
 const statusTag: Record<HomeStatus, { label: string; color: 'lightBlue' | 'yellow' | 'green' }> = { open: { label: 'Open', color: 'lightBlue' }, pending: { label: 'Pending', color: 'yellow' }, closed: { label: 'Closed', color: 'green' } }
 
 /** The card of a conversation in the list. */
@@ -94,6 +98,37 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     if (on) setHasFollowed(true)
   }
   const [emailThreads, setEmailThreads] = useState<Record<string, EmailThreadMessage[]>>(() => Object.fromEntries(inboxes.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.map((c, n) => [c.id, emailThread(c, avatarColors[n % avatarColors.length])]))))
+
+  // Follower alerts in the bell. Only entering or leaving Closed alerts a follower; Open <-> Pending does not.
+  const [alerts, setAlerts] = useState<FollowerAlert[]>([])
+  const [bellOpen, setBellOpen] = useState(false)
+  const closeBell = useCallback(() => setBellOpen(false), [])
+  // The latest statuses and follows, for changes that land later (a customer's reply arrives a moment after sending).
+  const live = useRef({ statuses, followed })
+  live.current = { statuses, followed }
+  const findConv = (id: string) => inboxes.flatMap((i) => i.conversations.map((c) => ({ inbox: i, conv: c }))).find((e) => e.conv.id === id)
+  /** Changes a status. `by` is who changed it; leave it out for the signed-in user, whose own changes never alert them. */
+  const changeStatus = (id: string, next: HomeStatus, by?: string) => {
+    const prev = live.current.statuses[id] ?? 'open'
+    if (prev === next) return
+    live.current = { ...live.current, statuses: { ...live.current.statuses, [id]: next } }
+    setStatuses((p) => ({ ...p, [id]: next }))
+    if (!by || !live.current.followed.includes(id)) return
+    const kind = next === 'closed' ? 'closed' : prev === 'closed' ? 'reopened' : null
+    const entry = findConv(id)
+    if (kind && entry) setAlerts((a) => [{ id: `${id}-${Date.now()}`, convId: id, kind, subject: entry.conv.subject ?? 'No subject', inbox: entry.inbox.label, by, time: nowLabel(), read: false }, ...a])
+  }
+  // A customer reply reopens a closed conversation: one reopen alert, no separate reply alert. A reply to an open one alerts no one.
+  const customerReplied = (id: string) => { if ((live.current.statuses[id] ?? 'open') === 'closed') changeStatus(id, 'open', 'a customer reply') }
+  const openAlert = (a: FollowerAlert) => {
+    setAlerts((prev) => prev.map((x) => (x.id === a.id ? { ...x, read: true } : x)))
+    setBellOpen(false)
+    setNavValue('conversations')
+    const entry = findConv(a.convId)
+    if (!entry) return
+    setView(followed.includes(a.convId) ? FOLLOWING : `${keyOf(entry.inbox)}-${channelViews[entry.inbox.channel][0]}`)
+    setSelected(a.convId)
+  }
 
   const sections = useMemo<ConversationsSidebarSection[]>(() => {
     const base = sampleSections(true, first ? [first.channel] : [])
@@ -148,7 +183,11 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
       <PageLayout
         variant="home"
         sidebarCollapsed={sidebarCollapsed}
-        nav={<MainNav items={navSampleItems} footerItems={navSampleFooterItems} value={navValue} onChange={(id) => { setNavValue(id); onNavChange?.(id) }} user={{ initial: 'A', name: 'Alex' }} userMenu={navSampleUserMenu} />}
+        nav={<MainNav items={navSampleItems} footerItems={navSampleFooterItems} value={navValue} onChange={(id) => {
+          // The bell opens the follower alerts beside it; the page stays.
+          if (id === 'notifications') { const open = !bellOpen; setBellOpen(open); setNavValue(open ? 'notifications' : 'conversations'); return }
+          setBellOpen(false); setNavValue(id); onNavChange?.(id)
+        }} user={{ initial: 'A', name: 'Alex' }} userMenu={navSampleUserMenu} />}
         sidebar={<ConversationsSidebar sections={sections} value={view}
           onChange={go}
           // Opening an inbox lands on its first view.
@@ -160,7 +199,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           customFields={customFields}
           contact={selectedConv ? { name: selectedConv.name, email: channel === 'email' ? customerAddress(selectedConv) : selectedConv.email } : undefined}
           status={(selected && statuses[selected]) || 'open'}
-          onStatusChange={(s) => selected && setStatuses((prev) => ({ ...prev, [selected]: s }))}
+          onStatusChange={(s) => selected && changeStatus(selected, s)}
           following={followPlacement === 'panel' && channel === 'email' && selected ? followed.includes(selected) : undefined}
           onFollowChange={(on) => selected && setFollow(selected, on)}
         />}
@@ -198,7 +237,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
                 onSend={(text) => {
                   const id = selected
                   setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), agentEmail(text)] }))
-                  scheduleEmailReply(customerAddress(selectedConv), color, (reply) => setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), reply] })))
+                  scheduleEmailReply(customerAddress(selectedConv), color, (reply) => { setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), reply] })); customerReplied(id) })
                 }}
               />
             )}
@@ -239,9 +278,25 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
       </PageLayout>
       {/* Prototype only: switch where Follow sits, to compare the options. */}
       <div style={{ position: 'fixed', left: '50%', bottom: 'var(--spacing4)', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: 'var(--spacing3)', padding: 'var(--spacing2) var(--spacing3)', background: 'var(--slateSurfaceWhite)', border: '1px solid var(--slateBorderDefault)', borderRadius: 'var(--radius8)' }}>
-        <span className="text-body-sm-medium" style={{ color: 'var(--slateTextSubtle)' }}>Follow placement</span>
+        <span className="text-body-sm-medium" style={{ color: 'var(--slateTextSubtle)', whiteSpace: 'nowrap' }}>Follow placement</span>
         <Tabs variant="filled" tabs={[{ value: 'panel', label: 'Right panel' }, { value: 'toolbar', label: 'Email toolbar' }]} value={followPlacement} onChange={(v: string) => setFollowPlacement(v as 'panel' | 'toolbar')} />
+        {/* Prototype only: events by someone else on the open conversation, to see follower alerts. */}
+        {channel === 'email' && selected && selectedConv && (
+          <>
+            <span aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', background: 'var(--slateBorderLight)' }} />
+            <span className="text-body-sm-medium" style={{ color: 'var(--slateTextSubtle)', whiteSpace: 'nowrap' }}>Simulate</span>
+            <Button size="xs" variant="secondary" disabled={statuses[selected] === 'closed'} onClick={() => changeStatus(selected, 'closed', TEAMMATE)}>Teammate closes</Button>
+            <Button size="xs" variant="secondary" disabled={statuses[selected] === 'pending'} onClick={() => changeStatus(selected, 'pending', TEAMMATE)}>Teammate sets Pending</Button>
+            <Button size="xs" variant="secondary" disabled={statuses[selected] === 'open'} onClick={() => changeStatus(selected, 'open', TEAMMATE)}>Teammate reopens</Button>
+            <Button size="xs" variant="secondary" onClick={() => {
+              const id = selected
+              setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), { id: `customer-${Date.now()}`, email: customerAddress(selectedConv), avatarColor: color, time: nowLabel(), body: 'Hi,\n\nJust following up on this. Is there an update?' }] }))
+              customerReplied(id)
+            }}>Customer replies</Button>
+          </>
+        )}
       </div>
+      {bellOpen && <NotificationsPanel alerts={alerts} onOpen={openAlert} onMarkAllRead={() => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))} onClose={() => { closeBell(); setNavValue('conversations') }} />}
     </div>
   )
 }
