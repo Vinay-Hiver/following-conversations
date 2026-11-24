@@ -229,6 +229,8 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
 
   // My Work: conversations you are assigned or co-assigned, from the inboxes you can reach. Its views (Live Queue, Standard Queue) all list them.
   const myWorkEntries = accessible.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.filter((c) => assigneeOf(c.id) === ME || coAssigneeOf(c.id) === ME).map((c) => ({ inbox: i, conv: c })))
+  // Followed conversations you can still reach.
+  const followingCount = followed.filter((id) => { const e = findConv(id); return !!e && !revoked.includes(keyOf(e.inbox)) }).length
   const sections = useMemo<ConversationsSidebarSection[]>(() => {
     const base = sampleSections(true, first ? [first.channel] : [])
     return base.map((sec, n) => {
@@ -237,11 +239,11 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
       if (n === 0) return { ...sec, items: sec.items.flatMap((it) => {
         if (it.id !== MY_WORK) return [it]
         const myWork = { ...it, count: String(myWorkEntries.length), views: it.views?.map((v) => ({ ...v, count: myWorkEntries.length })) }
-        return hasFollowed ? [myWork, { id: FOLLOWING, label: 'Following', icon: 'view2' as const }] : [myWork]
+        return hasFollowed ? [myWork, { id: FOLLOWING, label: 'Following', icon: 'view2' as const, count: String(followingCount) }] : [myWork]
       }) }
       return sec
     })
-  }, [accessible, first, hasFollowed, myWorkEntries.length, assignees]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [accessible, first, hasFollowed, myWorkEntries.length, assignees, followingCount]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Followed conversations, from every shared email inbox, with the inbox each one is in.
   const followedEntries = followed.flatMap((id) => accessible.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.filter((c) => c.id === id).map((c) => ({ inbox: i, conv: c }))))
