@@ -20,6 +20,7 @@ import { MainNav } from '../../patterns/MainNav'
 import { navSampleFooterItems, navSampleItems, navSampleUserMenu } from '../../patterns/MainNav/sampleData'
 import { PageLayout } from '../../patterns/PageLayout'
 import { EmptyState } from '../../patterns/EmptyState'
+import { Eye } from 'lucide-react' // Prototype only: HOT has no eye empty-state icon.
 import { Button } from '../../components/Button'
 import { Modal, ModalText } from '../../components/Modal'
 import { Tabs } from '../../components/Tabs'
@@ -382,7 +383,14 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
         {isPersonal && personalEntries.length === 0 && !noAccess && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             {isFollowing
-              ? <EmptyState icon="email" title="No followed conversations" description="Open a conversation in a shared email inbox and choose Follow to keep an eye on it here." />
+              ? (
+                // Like EmptyState, with an eye: HOT has no eye empty-state icon, so this one is from lucide (prototype only).
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 'var(--spacing2)', maxWidth: 520, padding: '0 var(--spacing4)' }}>
+                  <span aria-hidden="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, marginBottom: 'var(--spacing4)', borderRadius: '50%', background: 'var(--slateSurfaceDisabled)', color: 'var(--slateTextBody)' }}><Eye size={24} strokeWidth={2} /></span>
+                  <h2 className="text-body-lg-semibold" style={{ margin: 0, color: 'var(--slateTextTitle)' }}>No followed conversations</h2>
+                  <p className="text-body-md-regular" style={{ margin: 0, color: 'var(--slateTextSubtle)' }}>Open a conversation in a shared email inbox and choose Follow to keep an eye on it here.</p>
+                </div>
+              )
               : <EmptyState icon="email" title="Nothing in My Work" description="Conversations assigned or co-assigned to you show here." />}
           </div>
         )}
