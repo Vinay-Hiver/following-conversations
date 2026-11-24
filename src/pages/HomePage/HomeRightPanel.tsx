@@ -67,7 +67,6 @@ export type HomeRightPanelProps = {
   followBusy?: boolean
   /** The last Follow or Unfollow failed: the old state stays, with Retry. */
   followError?: string
-  onFollowRetry?: () => void
   /** Other inboxes that hold this same email. When there are any, the heading shows "+N more" and a menu to remove it from this inbox. */
   otherInboxes?: string[]
   onRemoveFromInbox?: () => void
@@ -81,7 +80,7 @@ export type HomeRightPanelProps = {
 }
 
 /** The right panel of the Home page: the inbox, Follow (shared email), Assignee, Status, Tags, then Contact, Account, Related and Custom fields. */
-export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, status, onStatusChange, following, onFollowChange, followBusy, followError, onFollowRetry, otherInboxes, onRemoveFromInbox, onOpenInbox, people, assignee, onAssigneeChange, coAssigneeValue, onCoAssigneeChange }: HomeRightPanelProps) {
+export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, status, onStatusChange, following, onFollowChange, followBusy, followError, otherInboxes, onRemoveFromInbox, onOpenInbox, people, assignee, onAssigneeChange, coAssigneeValue, onCoAssigneeChange }: HomeRightPanelProps) {
   return (
     <RightPanel aria-label="Details" tabs={[{ id: 'shared-inbox', label: 'Shared Inbox', icon: 'sminbox' }]} customizeWidgets>
       <RightPanelTop title={otherInboxes?.length ? '' : inboxName}>
@@ -94,10 +93,10 @@ export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, s
           </Row>
         )}
         {following !== undefined && followError && (
-          <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing2)', padding: '0 var(--spacing3) var(--spacing1)', color: 'var(--errorTextBody)' }}>
-            <Icon name="erroricon" size={14} />
+          // Figma "Container (Following Conversations)": the button stays enabled and is the retry, so there is no separate Retry.
+          <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing2)', marginBottom: 'var(--spacing1)', color: 'var(--errorTextBody)' }}>
+            <Icon name="alerttriangle" size={14} />
             <span className="text-body-sm-regular" style={{ flex: 1 }}>{followError}</span>
-            <Button size="xs" variant="ghost" onClick={onFollowRetry}>Retry</Button>
           </div>
         )}
         <AssigneeField people={people} value={assignee} onChange={onAssigneeChange} />

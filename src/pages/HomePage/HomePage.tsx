@@ -354,8 +354,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           following={followPlacement === 'panel' && channel === 'email' && selected ? followed.includes(selected) : undefined}
           onFollowChange={(on) => selected && toggleFollow(selected, on)}
           followBusy={!!selected && followBusy === selected}
-          followError={followError && followError.id === selected ? `Couldn't ${followError.on ? 'follow' : 'unfollow'} this conversation.` : undefined}
-          onFollowRetry={() => followError && requestFollow(followError.id, followError.on)}
+          followError={followError && followError.id === selected ? `Couldn't ${followError.on ? 'follow' : 'unfollow'} conversation. Try again` : undefined}
           people={people}
           assignee={selected ? assigneeOf(selected) : 'adam'}
           onAssigneeChange={(v) => selected && setAssignees((p) => ({ ...p, [selected]: v }))}
@@ -429,8 +428,9 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
                       </Button>
                     </Tooltip>
                     {followError?.id === selected && (
-                      <Tooltip content={`Couldn't ${followError.on ? 'follow' : 'unfollow'}. Retry`} placement="bottom">
-                        <Button size="xs" variant="ghost" iconLeft={<Icon name="erroricon" size={16} />} onClick={() => requestFollow(followError.id, followError.on)}>Retry</Button>
+                      // No separate Retry: the eye button stays enabled and is the retry.
+                      <Tooltip content={`Couldn't ${followError.on ? 'follow' : 'unfollow'} conversation. Try again`} placement="bottom">
+                        <span role="alert" aria-label={`Couldn't ${followError.on ? 'follow' : 'unfollow'} conversation. Try again`} style={{ display: 'inline-flex', color: 'var(--errorTextBody)' }}><Icon name="alerttriangle" size={16} /></span>
                       </Tooltip>
                     )}
                   </>
