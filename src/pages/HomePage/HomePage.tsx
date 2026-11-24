@@ -128,8 +128,8 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const [coAssignees, setCoAssignees] = useState<Record<string, string>>({})
   const startAssignee = useMemo(() => Object.fromEntries(inboxes.flatMap((i) => i.conversations.map((c) => [c.id, c.assignee ?? 'praveen']))), [inboxes])
   const assigneeOf = (id: string) => assignees[id] ?? startAssignee[id] ?? 'praveen'
-  // The conversations a view lists: Mine is yours, Unassigned has no owner, the other views list the whole inbox.
-  const inView = (inbox: HomeInbox, viewLabel?: string) => inbox.conversations.filter((c) => viewLabel === 'Mine' ? assigneeOf(c.id) === ME : viewLabel === 'Unassigned' ? assigneeOf(c.id) === NONE : true)
+  // The conversations a view lists: Mine is yours, Unassigned has no owner. Team and Tickets are empty in this prototype.
+  const inView = (inbox: HomeInbox, viewLabel?: string) => inbox.conversations.filter((c) => viewLabel === 'Mine' ? assigneeOf(c.id) === ME : viewLabel === 'Unassigned' ? assigneeOf(c.id) === NONE : viewLabel === 'Team' || viewLabel === 'Tickets' ? false : true)
   const coAssigneeOf = (id: string) => coAssignees[id] ?? NONE
   // Inboxes the signed-in user has lost access to. Following never grants access.
   const [revoked, setRevoked] = useState<string[]>([])
