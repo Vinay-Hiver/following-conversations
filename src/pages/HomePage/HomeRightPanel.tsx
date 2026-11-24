@@ -36,8 +36,6 @@ export type HomeRightPanelProps = {
   /** The last Follow or Unfollow failed: the old state stays, with Retry. */
   followError?: string
   onFollowRetry?: () => void
-  /** Other inboxes that hold the same email. Follow applies only to this copy. */
-  otherCopies?: string[]
   people: HomePerson[]
   assignee: string
   onAssigneeChange: (value: string) => void
@@ -46,7 +44,7 @@ export type HomeRightPanelProps = {
 }
 
 /** The right panel of the Home page: the inbox, Follow (shared email), Assignee, Status, Tags, then Contact, Account, Related and Custom fields. */
-export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, status, onStatusChange, following, onFollowChange, followBusy, followError, onFollowRetry, otherCopies, people, assignee, onAssigneeChange, coAssigneeValue, onCoAssigneeChange }: HomeRightPanelProps) {
+export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, status, onStatusChange, following, onFollowChange, followBusy, followError, onFollowRetry, people, assignee, onAssigneeChange, coAssigneeValue, onCoAssigneeChange }: HomeRightPanelProps) {
   return (
     <RightPanel aria-label="Details" tabs={[{ id: 'shared-inbox', label: 'Shared Inbox', icon: 'sminbox' }]} customizeWidgets>
       <RightPanelTop title={inboxName}>
@@ -62,12 +60,6 @@ export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, s
             <Icon name="erroricon" size={14} />
             <span className="text-body-sm-regular" style={{ flex: 1 }}>{followError}</span>
             <Button size="xs" variant="ghost" onClick={onFollowRetry}>Retry</Button>
-          </div>
-        )}
-        {following !== undefined && otherCopies && otherCopies.length > 0 && (
-          <div className="text-body-sm-regular" style={{ display: 'flex', gap: 'var(--spacing2)', padding: '0 var(--spacing3) var(--spacing1)', color: 'var(--slateTextSubtle)' }}>
-            <Icon name="info" size={14} />
-            <span>This email is also in {otherCopies.join(', ')}. Follow applies only to this copy.</span>
           </div>
         )}
         <AssigneeField people={people} value={assignee} onChange={onAssigneeChange} />

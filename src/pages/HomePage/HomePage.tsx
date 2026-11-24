@@ -29,6 +29,7 @@ import type { SlackThreadItem } from '../../patterns/SlackConversation'
 import { addReaction, agentMessage, deleteMessage, removeReaction, scheduleSlackReply } from '../../patterns/SlackConversation/slackThread'
 import { HomeRightPanel } from './HomeRightPanel'
 import { NotificationsPanel } from './NotificationsPanel'
+import { BellDot } from './BellDot'
 import { NotificationSimulator, notificationSections } from './NotificationSimulator'
 import type { SimulatedEvent, SimulatorSection } from './NotificationSimulator'
 import type { HomePerson } from './HomeRightPanel'
@@ -283,8 +284,6 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const inbox = isPersonal ? openEntry?.inbox ?? personalEntries[0]?.inbox : currentView?.inbox
   // Access was revoked: the conversation is not shown, even from an old link.
   const noAccess = !!openEntry && revoked.includes(keyOf(openEntry.inbox))
-  // The same email in other inboxes you can reach. Following applies only to the copy you chose.
-  const otherCopies = openEntry ? accessible.filter((i) => i !== openEntry.inbox && i.conversations.some((c) => c.email === openEntry.conv.email && c.subject === openEntry.conv.subject)).map((i) => i.label) : []
   const channel = inbox?.channel
   const selectedConv = inbox?.conversations.find((c) => c.id === selected)
   const selectedIndex = inbox && selected ? inbox.conversations.findIndex((c) => c.id === selected) : 0
@@ -310,7 +309,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           // Opening an inbox lands on its first view.
           onExpandedChange={(id, open) => { const firstView = sections.flatMap((sec) => sec.items).find((i) => i.id === id)?.views?.[0]; if (open && firstView) go(firstView.id) }}
         />}
-        rightPanel={noAccess ? undefined : <HomeRightPanel
+        rightPanel={noAccess || !selectedConv ? undefined : <HomeRightPanel
           inboxName={inbox?.label ?? ''}
           coAssignee={channel === 'email'}
           customFields={customFields}
@@ -322,7 +321,6 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           followBusy={!!selected && followBusy === selected}
           followError={followError && followError.id === selected ? `Couldn't ${followError.on ? 'follow' : 'unfollow'} this conversation.` : undefined}
           onFollowRetry={() => followError && requestFollow(followError.id, followError.on)}
-          otherCopies={channel === 'email' ? otherCopies : undefined}
           people={people}
           assignee={selected ? assigneeOf(selected) : 'praveen'}
           onAssigneeChange={(v) => selected && setAssignees((p) => ({ ...p, [selected]: v }))}
@@ -425,6 +423,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
         <NotificationSimulator label="Notifications" sections={notificationSections} onPlay={playEvent} />
         <NotificationSimulator label="Scenarios" sections={scenarioSections(failNext, revoked.length > 0)} onPlay={playScenario} />
       </div>
+      <BellDot show={alerts.some((a) => { const e = findConv(a.convId); return !a.read && (!e || !revoked.includes(keyOf(e.inbox))) })} />
       {bellOpen && <NotificationsPanel alerts={alerts.filter((a) => { const e = findConv(a.convId); return !e || !revoked.includes(keyOf(e.inbox)) })} onOpen={openAlert} onToggleRead={(t) => setAlerts((prev) => prev.map((x) => (x.id === t.id ? { ...x, read: !x.read } : x)))} onMarkAllRead={() => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))} onClose={() => { closeBell(); setNavValue('conversations') }} />}
     </div>
   )
