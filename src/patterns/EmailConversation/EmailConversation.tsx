@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { HTMLAttributes } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { Button } from '../../components/Button'
 import { EmailEditor } from '../../components/EmailEditor'
 import { EmailMessage } from '../../components/EmailMessage'
@@ -16,10 +16,12 @@ export type EmailConversationProps = Omit<HTMLAttributes<HTMLDivElement>, 'child
   inboxEmail?: string
   /** Called with the text when the agent sends a reply. */
   onSend?: (text: string) => void
+  /** Extra buttons at the start of the subject toolbar, before Expand all, with a divider after them. For example a Follow button. */
+  actions?: ReactNode
 }
 
 /** The Email conversation: a top bar, the subject with a toolbar beside it (expand all, reply, reply all, forward, open in new window), and the thread of messages, each open or closed. Reply opens an editor above the message (the "linked-conversations" prototype). */
-export function EmailConversation({ subject, messages, inboxEmail = 'support@acme.com', onSend, className, ...rest }: EmailConversationProps) {
+export function EmailConversation({ subject, messages, inboxEmail = 'support@acme.com', onSend, actions, className, ...rest }: EmailConversationProps) {
   const [expanded, setExpanded] = useState<string[]>(() => (messages[0] ? [messages[0].id] : []))
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -53,6 +55,7 @@ export function EmailConversation({ subject, messages, inboxEmail = 'support@acm
         <div className="hot-email-conv__subject">
           <h1 className="hot-email-conv__subject-text">{subject}</h1>
           <div className="hot-email-conv__tools">
+            {actions && <>{actions}<span className="hot-email-conv__divider hot-email-conv__divider--second" aria-hidden="true" /></>}
             <Button iconOnly variant="ghost" size="xs" className="hot-email-conv__expand" aria-label={allOpen ? 'Collapse all' : 'Expand all'} onClick={toggleAll}><Icon name={allOpen ? 'collapse' : 'expand'} size={16} /></Button>
             <span className="hot-email-conv__divider hot-email-conv__divider--first" aria-hidden="true" />
             <Button iconOnly variant="ghost" size="xs" aria-label="Reply" onClick={() => reply(firstOpen)}><Icon name="reply" size={16} /></Button>

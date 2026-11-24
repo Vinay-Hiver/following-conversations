@@ -20,6 +20,10 @@ import { MainNav } from '../../patterns/MainNav'
 import { navSampleFooterItems, navSampleItems, navSampleUserMenu } from '../../patterns/MainNav/sampleData'
 import { PageLayout } from '../../patterns/PageLayout'
 import { EmptyState } from '../../patterns/EmptyState'
+import { Button } from '../../components/Button'
+import { Tabs } from '../../components/Tabs'
+import { Tooltip } from '../../components/Tooltip'
+import { Icon } from '../../icons/Icon'
 import { SlackConversation } from '../../patterns/SlackConversation'
 import type { SlackThreadItem } from '../../patterns/SlackConversation'
 import { addReaction, agentMessage, deleteMessage, removeReaction, scheduleSlackReply } from '../../patterns/SlackConversation/slackThread'
@@ -83,6 +87,8 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   // Conversations the signed-in user follows, newest follow first. The Following tab shows after the first follow and stays.
   const [followed, setFollowed] = useState<string[]>([])
   const [hasFollowed, setHasFollowed] = useState(false)
+  // Prototype only: where the Follow action sits, switched from the floating control at the bottom.
+  const [followPlacement, setFollowPlacement] = useState<'panel' | 'toolbar'>('panel')
   const setFollow = (id: string, on: boolean) => {
     setFollowed((prev) => (on ? (prev.includes(id) ? prev : [id, ...prev]) : prev.filter((x) => x !== id)))
     if (on) setHasFollowed(true)
@@ -155,7 +161,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           contact={selectedConv ? { name: selectedConv.name, email: channel === 'email' ? customerAddress(selectedConv) : selectedConv.email } : undefined}
           status={(selected && statuses[selected]) || 'open'}
           onStatusChange={(s) => selected && setStatuses((prev) => ({ ...prev, [selected]: s }))}
-          following={channel === 'email' && selected ? followed.includes(selected) : undefined}
+          following={followPlacement === 'panel' && channel === 'email' && selected ? followed.includes(selected) : undefined}
           onFollowChange={(on) => selected && setFollow(selected, on)}
         />}
       >
@@ -182,6 +188,13 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
                 key={selected}
                 subject={selectedConv.subject ?? 'No subject'}
                 messages={emailThreads[selected] ?? []}
+                actions={followPlacement === 'toolbar' ? (
+                  <Tooltip content={followed.includes(selected) ? 'Unfollow' : 'Follow'} placement="bottom">
+                    <Button iconOnly variant={followed.includes(selected) ? 'secondary-filled' : 'ghost'} size="xs" aria-label={followed.includes(selected) ? 'Unfollow' : 'Follow'} aria-pressed={followed.includes(selected)} onClick={() => setFollow(selected, !followed.includes(selected))}>
+                      <Icon name="view2" size={16} />
+                    </Button>
+                  </Tooltip>
+                ) : undefined}
                 onSend={(text) => {
                   const id = selected
                   setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), agentEmail(text)] }))
@@ -224,6 +237,11 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           </div>
         )}
       </PageLayout>
+      {/* Prototype only: switch where Follow sits, to compare the options. */}
+      <div style={{ position: 'fixed', left: '50%', bottom: 'var(--spacing4)', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: 'var(--spacing3)', padding: 'var(--spacing2) var(--spacing3)', background: 'var(--slateSurfaceWhite)', border: '1px solid var(--slateBorderDefault)', borderRadius: 'var(--radius8)' }}>
+        <span className="text-body-sm-medium" style={{ color: 'var(--slateTextSubtle)' }}>Follow placement</span>
+        <Tabs variant="filled" tabs={[{ value: 'panel', label: 'Right panel' }, { value: 'toolbar', label: 'Email toolbar' }]} value={followPlacement} onChange={(v: string) => setFollowPlacement(v as 'panel' | 'toolbar')} />
+      </div>
     </div>
   )
 }
