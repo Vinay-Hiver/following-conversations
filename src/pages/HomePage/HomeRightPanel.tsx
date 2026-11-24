@@ -2,7 +2,6 @@ import { useRef, useState } from 'react'
 import { Button } from '../../components/Button'
 import { Dropdown } from '../../components/Dropdown'
 import { Popover } from '../../components/Popover'
-import { Tooltip } from '../../components/Tooltip'
 import { Tag } from '../../components/Tag'
 import { Icon } from '../../icons/Icon'
 import type { IconName } from '../../icons/iconData'
@@ -28,13 +27,19 @@ function Row({ icon, label, children, link }: { icon: IconName; label: string; c
 function SharedHeading({ name, others, onRemove }: { name: string; others: string[]; onRemove?: () => void }) {
   const [open, setOpen] = useState(false)
   const kebab = useRef<HTMLSpanElement>(null)
+  // "+N more" opens the list of every inbox this email is in.
+  const [listOpen, setListOpen] = useState(false)
+  const chip = useRef<HTMLSpanElement>(null)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing2)', height: 28, marginTop: 'calc(-1 * var(--spacing10))', marginBottom: 'var(--spacing2)' }}>
       {/* Pulled up over the empty built-in title row, which only takes text. */}
       <span className="text-body-md-medium" style={{ color: 'var(--slateTextBody)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-      <Tooltip content={`Also in ${others.join(', ')}`}>
-        <span className="text-body-sm-regular" style={{ flex: 'none', padding: '1px var(--spacing1)', borderRadius: 'var(--radius4)', background: 'var(--blueSurfaceDefault)', color: 'var(--slateTextBody)', whiteSpace: 'nowrap' }}>+ {others.length} more</span>
-      </Tooltip>
+      <span ref={chip} style={{ display: 'inline-flex', flex: 'none' }}>
+        <button type="button" className="text-body-sm-regular" aria-expanded={listOpen} aria-label={`In ${others.length + 1} inboxes`} onClick={() => setListOpen((o) => !o)} style={{ padding: '1px var(--spacing1)', border: 0, borderRadius: 'var(--radius4)', background: 'var(--blueSurfaceDefault)', color: 'var(--slateTextBody)', whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: 'inherit' }}>+ {others.length} more</button>
+      </span>
+      <Popover open={listOpen} onClose={() => setListOpen(false)} anchorRef={chip}>
+        <Dropdown options={[name, ...others].map((label) => ({ value: label, label }))} onChange={() => setListOpen(false)} />
+      </Popover>
       <span style={{ flex: 1 }} />
       <span ref={kebab} style={{ display: 'inline-flex' }}><Button iconOnly size="xs" variant="ghost" aria-label="More actions" aria-expanded={open} onClick={() => setOpen((o) => !o)}><Icon name="vmore" size={14} /></Button></span>
       <Popover open={open} onClose={() => setOpen(false)} anchorRef={kebab} placement="bottom-end">
