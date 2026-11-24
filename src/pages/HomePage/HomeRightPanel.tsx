@@ -2,9 +2,13 @@ import { Button } from '../../components/Button'
 import { Tag } from '../../components/Tag'
 import { Icon } from '../../icons/Icon'
 import type { IconName } from '../../icons/iconData'
+import type { AvatarColor } from '../../components/Avatar'
 import { AssigneeField, CoAssigneeField, CustomFieldsList, RightPanel, RightPanelSection, RightPanelTop, StatusField } from '../../patterns/RightPanel'
 import type { CustomFieldValue } from '../../patterns/RightPanel'
 import type { HomeStatus } from './homeData'
+
+/** A person in the Assignee and Co-assignee lists. */
+export type HomePerson = { value: string; label: string; color: AvatarColor }
 
 /** A row of the right panel: [icon] [label] ... [value], with the panel's own classes (RightPanel.css). */
 function Row({ icon, label, children, link }: { icon: IconName; label: string; children?: React.ReactNode; link?: boolean }) {
@@ -27,22 +31,47 @@ export type HomeRightPanelProps = {
   /** Shared email only: whether the signed-in user follows the open conversation. Leave out to hide Follow. */
   following?: boolean
   onFollowChange?: (following: boolean) => void
+  /** Follow or Unfollow is being saved. */
+  followBusy?: boolean
+  /** The last Follow or Unfollow failed: the old state stays, with Retry. */
+  followError?: string
+  onFollowRetry?: () => void
+  /** Other inboxes that hold the same email. Follow applies only to this copy. */
+  otherCopies?: string[]
+  people: HomePerson[]
+  assignee: string
+  onAssigneeChange: (value: string) => void
+  coAssigneeValue: string
+  onCoAssigneeChange: (value: string) => void
 }
 
 /** The right panel of the Home page: the inbox, Follow (shared email), Assignee, Status, Tags, then Contact, Account, Related and Custom fields. */
-export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, status, onStatusChange, following, onFollowChange }: HomeRightPanelProps) {
+export function HomeRightPanel({ inboxName, coAssignee, customFields, contact, status, onStatusChange, following, onFollowChange, followBusy, followError, onFollowRetry, otherCopies, people, assignee, onAssigneeChange, coAssigneeValue, onCoAssigneeChange }: HomeRightPanelProps) {
   return (
     <RightPanel aria-label="Details" tabs={[{ id: 'shared-inbox', label: 'Shared Inbox', icon: 'sminbox' }]} customizeWidgets>
       <RightPanelTop title={inboxName}>
         {following !== undefined && (
           <Row icon="view2" label="Follow">
-            <Button size="xs" variant={following ? 'secondary-filled' : 'secondary'} iconLeft={<Icon name="view2" size={16} />} aria-pressed={following} onClick={() => onFollowChange?.(!following)}>
-              {following ? 'Unfollow' : 'Follow'}
+            <Button size="xs" variant={following ? 'secondary-filled' : 'secondary'} disabled={followBusy} iconLeft={<Icon name="view2" size={16} />} aria-pressed={following} onClick={() => onFollowChange?.(!following)}>
+              {followBusy ? (following ? 'Unfollowing…' : 'Following…') : following ? 'Unfollow' : 'Follow'}
             </Button>
           </Row>
         )}
-        <AssigneeField />
-        {coAssignee && <CoAssigneeField />}
+        {following !== undefined && followError && (
+          <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing2)', padding: '0 var(--spacing3) var(--spacing1)', color: 'var(--errorTextBody)' }}>
+            <Icon name="erroricon" size={14} />
+            <span className="text-body-sm-regular" style={{ flex: 1 }}>{followError}</span>
+            <Button size="xs" variant="ghost" onClick={onFollowRetry}>Retry</Button>
+          </div>
+        )}
+        {following !== undefined && otherCopies && otherCopies.length > 0 && (
+          <div className="text-body-sm-regular" style={{ display: 'flex', gap: 'var(--spacing2)', padding: '0 var(--spacing3) var(--spacing1)', color: 'var(--slateTextSubtle)' }}>
+            <Icon name="info" size={14} />
+            <span>This email is also in {otherCopies.join(', ')}. Follow applies only to this copy.</span>
+          </div>
+        )}
+        <AssigneeField people={people} value={assignee} onChange={onAssigneeChange} />
+        {coAssignee && <CoAssigneeField people={people} value={coAssigneeValue} onChange={onCoAssigneeChange} />}
         <StatusField value={status} onChange={onStatusChange} />
         <Row icon="tag" label="Tags">
           <Tag color="violet" onRemove={() => {}} removeLabel="Remove Finance">Finance</Tag>

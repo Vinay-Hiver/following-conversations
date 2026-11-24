@@ -29,8 +29,9 @@ import type { SlackThreadItem } from '../../patterns/SlackConversation'
 import { addReaction, agentMessage, deleteMessage, removeReaction, scheduleSlackReply } from '../../patterns/SlackConversation/slackThread'
 import { HomeRightPanel } from './HomeRightPanel'
 import { NotificationsPanel } from './NotificationsPanel'
-import { NotificationSimulator } from './NotificationSimulator'
-import type { SimulatedEvent } from './NotificationSimulator'
+import { NotificationSimulator, notificationSections } from './NotificationSimulator'
+import type { SimulatedEvent, SimulatorSection } from './NotificationSimulator'
+import type { HomePerson } from './HomeRightPanel'
 import type { FollowerAlert } from './NotificationsPanel'
 import { homeData } from './homeData'
 import type { HomeConversation, HomeData, HomeInbox, HomeStatus } from './homeData'
@@ -52,6 +53,28 @@ const customerAddress = (c: HomeConversation) => c.email ?? `${c.name.toLowerCas
 const emailThread = (c: HomeConversation, color: AvatarColor): EmailThreadMessage[] => c.messages.map((m, i) => ({ id: String(i + 1), email: m.from === 'customer' ? customerAddress(c) : emailAgentAddress, avatarColor: m.from === 'customer' ? color : 'lightBlue', time: m.time, body: m.text }))
 
 const FOLLOWING = 'following'
+const MY_WORK = 'my-work'
+/** The signed-in user, and the people in the Assignee and Co-assignee lists. */
+const ME = 'alex'
+const NONE = 'none'
+const people: HomePerson[] = [{ value: ME, label: 'Alex (you)', color: 'violet' }, { value: 'praveen', label: 'Praveen Borawar', color: 'orange' }, { value: 'priya', label: 'Priya Nair', color: 'green' }]
+/** Prototype only: scenarios from the PRD's edge cases, played from the bottom bar. */
+type ScenarioEvent = 'co-assign-me' | 'co-assign-ends' | 'assign-me' | 'unassign-me' | 'lose-access' | 'restore-access' | 'fail-next'
+const scenarioSections = (failArmed: boolean, anyRevoked: boolean): SimulatorSection<ScenarioEvent>[] => [
+  { title: 'Assignment', items: [
+    { event: 'co-assign-me', label: 'Teammate co-assigns you', note: 'It joins My Work and stays in Following' },
+    { event: 'co-assign-ends', label: 'Your co-assignment ends', note: 'It leaves My Work and stays in Following' },
+    { event: 'assign-me', label: 'Teammate assigns it to you', note: 'Assignee and Follow stay independent' },
+    { event: 'unassign-me', label: 'You are unassigned', note: 'Following is unchanged' },
+  ] },
+  { title: 'Access', items: [
+    { event: 'lose-access', label: 'You lose access to its inbox', note: 'It disappears from Following, and its alerts stop' },
+    ...(anyRevoked ? [{ event: 'restore-access' as const, label: 'Access is restored', note: 'Followed conversations come back' }] : []),
+  ] },
+  { title: 'Errors', items: [
+    { event: 'fail-next', label: failArmed ? 'Next Follow will fail (armed)' : 'Next Follow fails', note: 'The old state stays, and you can retry' },
+  ] },
+]
 /** Prototype only: the teammate who changes a conversation in the simulator. */
 const TEAMMATE = 'Praveen Borawar'
 const statusTag: Record<HomeStatus, { label: string; color: 'lightBlue' | 'yellow' | 'green' }> = { open: { label: 'Open', color: 'lightBlue' }, pending: { label: 'Pending', color: 'yellow' }, closed: { label: 'Closed', color: 'green' } }
@@ -99,6 +122,28 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     setFollowed((prev) => (on ? (prev.includes(id) ? prev : [id, ...prev]) : prev.filter((x) => x !== id)))
     if (on) setHasFollowed(true)
   }
+  // Who owns each conversation. Assignment and following never start or stop each other.
+  const [assignees, setAssignees] = useState<Record<string, string>>({})
+  const [coAssignees, setCoAssignees] = useState<Record<string, string>>({})
+  const assigneeOf = (id: string) => assignees[id] ?? 'praveen'
+  const coAssigneeOf = (id: string) => coAssignees[id] ?? NONE
+  // Inboxes the signed-in user has lost access to. Following never grants access.
+  const [revoked, setRevoked] = useState<string[]>([])
+  const accessible = inboxes.filter((i) => !revoked.includes(keyOf(i)))
+  // Follow and Unfollow are saved for a moment; when one fails, the old state stays and Retry is offered.
+  const [failNext, setFailNext] = useState(false)
+  const [followBusy, setFollowBusy] = useState<string | null>(null)
+  const [followError, setFollowError] = useState<{ id: string; on: boolean } | null>(null)
+  const requestFollow = (id: string, on: boolean) => {
+    setFollowError(null)
+    setFollowBusy(id)
+    const fails = failNext
+    window.setTimeout(() => {
+      setFollowBusy(null)
+      if (fails) { setFailNext(false); setFollowError({ id, on }); return }
+      setFollow(id, on)
+    }, 600)
+  }
   const [emailThreads, setEmailThreads] = useState<Record<string, EmailThreadMessage[]>>(() => Object.fromEntries(inboxes.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.map((c, n) => [c.id, emailThread(c, avatarColors[n % avatarColors.length])]))))
 
   // Follower alerts in the bell. Only entering or leaving Closed alerts a follower; Open <-> Pending does not.
@@ -106,8 +151,8 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const [bellOpen, setBellOpen] = useState(false)
   const closeBell = useCallback(() => setBellOpen(false), [])
   // The latest statuses and follows, for changes that land later (a customer's reply arrives a moment after sending).
-  const live = useRef({ statuses, followed })
-  live.current = { statuses, followed }
+  const live = useRef({ statuses, followed, revoked })
+  live.current = { statuses, followed, revoked }
   const findConv = (id: string) => inboxes.flatMap((i) => i.conversations.map((c) => ({ inbox: i, conv: c }))).find((e) => e.conv.id === id)
   /** Changes a status. `by` is who changed it; leave it out for the signed-in user, whose own changes never alert them. */
   const changeStatus = (id: string, next: HomeStatus, by?: string) => {
@@ -118,18 +163,26 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     if (!by || !live.current.followed.includes(id)) return
     const kind = next === 'closed' ? 'closed' : prev === 'closed' ? 'reopened' : null
     const entry = findConv(id)
+    // No follower updates once access to the inbox is gone.
+    if (entry && live.current.revoked.includes(keyOf(entry.inbox))) return
     if (kind && entry) setAlerts((a) => [{ id: `${id}-${Date.now()}`, convId: id, kind, subject: entry.conv.subject ?? 'No subject', inbox: entry.inbox.label, by, time: nowLabel(), read: false }, ...a])
   }
   // A customer reply reopens a closed conversation: one reopen alert, no separate reply alert. A reply to an open one alerts no one.
   const customerReplied = (id: string) => { if ((live.current.statuses[id] ?? 'open') === 'closed') changeStatus(id, 'open', 'a customer reply') }
   // Prototype only: play a follower event. It lands on the open email conversation if you follow it, else the newest one you follow, else the first email conversation (which you then follow).
-  const playEvent = (event: SimulatedEvent) => {
-    const emailIds = inboxes.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.map((c) => c.id))
-    const f = live.current.followed
+  const target = () => {
+    const emailIds = accessible.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.map((c) => c.id))
+    const f = live.current.followed.filter((x) => emailIds.includes(x))
     const id = selected && f.includes(selected) ? selected : f[0] ?? emailIds[0]
-    const entry = findConv(id)
-    if (!entry) return
-    if (!f.includes(id)) { live.current = { ...live.current, followed: [id, ...f] }; setFollow(id, true) }
+    const entry = id ? findConv(id) : undefined
+    if (!entry) return undefined
+    if (!f.includes(id)) { live.current = { ...live.current, followed: [id, ...live.current.followed] }; setFollow(id, true) }
+    return { id, entry }
+  }
+  const playEvent = (event: SimulatedEvent) => {
+    const t = target()
+    if (!t) return
+    const { id, entry } = t
     const status = () => live.current.statuses[id] ?? 'open'
     const customerReply = () => {
       const address = customerAddress(entry.conv)
@@ -142,6 +195,24 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     if (event === 'teammate-pending') { if (status() !== 'open') changeStatus(id, 'open'); changeStatus(id, 'pending', TEAMMATE) }
     if (event === 'customer-replies-open') { if (status() === 'closed') changeStatus(id, 'open'); customerReply(); customerReplied(id) }
   }
+  // Prototype only: the PRD's edge cases.
+  const playScenario = (event: ScenarioEvent) => {
+    if (event === 'fail-next') { setFailNext(true); return }
+    if (event === 'restore-access') { setRevoked([]); return }
+    const t = target()
+    if (!t) return
+    const { id, entry } = t
+    if (event === 'co-assign-me') setCoAssignees((p) => ({ ...p, [id]: ME }))
+    if (event === 'co-assign-ends') setCoAssignees((p) => ({ ...p, [id]: NONE }))
+    if (event === 'assign-me') setAssignees((p) => ({ ...p, [id]: ME }))
+    if (event === 'unassign-me') setAssignees((p) => ({ ...p, [id]: 'praveen' }))
+    if (event === 'lose-access') {
+      setRevoked((p) => [...p, keyOf(entry.inbox)])
+      // Stay on the conversation, like an old link: it now shows that you have no access.
+      setView(FOLLOWING)
+      setSelected(id)
+    }
+  }
   const openAlert = (a: FollowerAlert) => {
     setAlerts((prev) => prev.map((x) => (x.id === a.id ? { ...x, read: true } : x)))
     setBellOpen(false)
@@ -152,24 +223,32 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     setSelected(a.convId)
   }
 
+  // My Work: conversations you are assigned or co-assigned, from the inboxes you can reach. Its views (Live Queue, Standard Queue) all list them.
+  const myWorkEntries = accessible.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.filter((c) => assigneeOf(c.id) === ME || coAssigneeOf(c.id) === ME).map((c) => ({ inbox: i, conv: c })))
   const sections = useMemo<ConversationsSidebarSection[]>(() => {
     const base = sampleSections(true, first ? [first.channel] : [])
     return base.map((sec, n) => {
-      if (sec.title === 'Shared Inbox') return { ...sec, items: sharedInboxItems(inboxes).map((it) => ({ ...it, defaultExpanded: first ? it.id === keyOf(first) : false })) }
+      if (sec.title === 'Shared Inbox') return { ...sec, items: sharedInboxItems(accessible).map((it) => ({ ...it, defaultExpanded: first ? it.id === keyOf(first) : false })) }
       // Following sits right after My Work in the personal section, once the user has followed something.
-      if (n === 0 && hasFollowed) return { ...sec, items: sec.items.flatMap((it) => (it.id === 'my-work' ? [it, { id: FOLLOWING, label: 'Following', icon: 'view2' as const }] : [it])) }
+      if (n === 0) return { ...sec, items: sec.items.flatMap((it) => {
+        if (it.id !== MY_WORK) return [it]
+        const myWork = { ...it, views: it.views?.map((v) => ({ ...v, count: myWorkEntries.length })) }
+        return hasFollowed ? [myWork, { id: FOLLOWING, label: 'Following', icon: 'view2' as const }] : [myWork]
+      }) }
       return sec
     })
-  }, [inboxes, first, hasFollowed])
+  }, [accessible, first, hasFollowed, myWorkEntries.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Followed conversations, from every shared email inbox, with the inbox each one is in.
-  const followedEntries = followed.flatMap((id) => inboxes.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.filter((c) => c.id === id).map((c) => ({ inbox: i, conv: c }))))
+  const followedEntries = followed.flatMap((id) => accessible.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.filter((c) => c.id === id).map((c) => ({ inbox: i, conv: c }))))
 
+  const myWorkViews = [MY_WORK, ...(sections.flatMap((sec) => sec.items).find((it) => it.id === MY_WORK)?.views?.map((v) => v.id) ?? [])]
   const inboxOf = (key: string) => inboxes.find((i) => keyOf(i) === key)
   // Going to a view selects the first conversation in it (Tags and All Views show no list).
   const go = (id: string) => {
     setView(id)
     if (id === FOLLOWING) { setSelected(followedEntries[0]?.conv.id); return }
+    if (myWorkViews.includes(id)) { setSelected(myWorkEntries[0]?.conv.id); return }
     const itemId = sections.flatMap((sec) => sec.items).find((it) => it.views?.some((v) => v.id === id))?.id
     const inbox = itemId ? inboxOf(itemId) : undefined
     setSelected(inbox && !hasNoList(id) ? inbox.conversations[0]?.id : undefined)
@@ -189,14 +268,24 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   // The inbox and view being shown, found from the sidebar's own data.
   const currentView = sections.flatMap((sec) => sec.items).flatMap((item) => (item.views ?? []).map((v) => ({ inbox: inboxOf(item.id), view: v }))).find((x) => x.view.id === view && x.inbox && !hasNoList(view))
   const isFollowing = view === FOLLOWING
-  // The open conversation and its inbox. In Following it can come from any email inbox, and stays open after Unfollow.
+  const isMyWork = myWorkViews.includes(view)
+  const myWorkViewLabel = sections.flatMap((sec) => sec.items).flatMap((it) => it.views ?? []).find((v) => v.id === view)?.label
+  const personalEntries = isFollowing ? followedEntries : myWorkEntries
+  const isPersonal = isFollowing || isMyWork
+  // The open conversation and its inbox. In Following or My Work it can come from any email inbox, and stays open after Unfollow.
   const openEntry = inboxes.flatMap((i) => i.conversations.map((c) => ({ inbox: i, conv: c }))).find((e) => e.conv.id === selected)
-  const inbox = isFollowing ? openEntry?.inbox ?? followedEntries[0]?.inbox : currentView?.inbox
+  const inbox = isPersonal ? openEntry?.inbox ?? personalEntries[0]?.inbox : currentView?.inbox
+  // Access was revoked: the conversation is not shown, even from an old link.
+  const noAccess = !!openEntry && revoked.includes(keyOf(openEntry.inbox))
+  // The same email in other inboxes you can reach. Following applies only to the copy you chose.
+  const otherCopies = openEntry ? accessible.filter((i) => i !== openEntry.inbox && i.conversations.some((c) => c.email === openEntry.conv.email && c.subject === openEntry.conv.subject)).map((i) => i.label) : []
   const channel = inbox?.channel
   const selectedConv = inbox?.conversations.find((c) => c.id === selected)
   const selectedIndex = inbox && selected ? inbox.conversations.findIndex((c) => c.id === selected) : 0
   const listItems = isFollowing
     ? followedEntries.map(({ inbox: i, conv: c }) => ({ ...toListItem(c), preview: c.subject ?? '', sla: undefined, moreCount: undefined, tags: [{ label: i.label }, statusTag[statuses[c.id] ?? 'open']] }))
+    : isMyWork
+    ? myWorkEntries.map(({ inbox: i, conv: c }) => ({ ...toListItem(c), preview: c.subject ?? '', sla: undefined, moreCount: undefined, tags: [{ label: i.label }, { label: assigneeOf(c.id) === ME ? 'Assignee' : 'Co-assignee' }, statusTag[statuses[c.id] ?? 'open']] }))
     : inbox ? withLatest(inbox.conversations.map(toListItem), latestFor) : []
   const color = avatarColors[Math.max(selectedIndex, 0) % avatarColors.length]
 
@@ -215,7 +304,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           // Opening an inbox lands on its first view.
           onExpandedChange={(id, open) => { const firstView = sections.flatMap((sec) => sec.items).find((i) => i.id === id)?.views?.[0]; if (open && firstView) go(firstView.id) }}
         />}
-        rightPanel={<HomeRightPanel
+        rightPanel={noAccess ? undefined : <HomeRightPanel
           inboxName={inbox?.label ?? ''}
           coAssignee={channel === 'email'}
           customFields={customFields}
@@ -223,20 +312,31 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           status={(selected && statuses[selected]) || 'open'}
           onStatusChange={(s) => selected && changeStatus(selected, s)}
           following={followPlacement === 'panel' && channel === 'email' && selected ? followed.includes(selected) : undefined}
-          onFollowChange={(on) => selected && setFollow(selected, on)}
+          onFollowChange={(on) => selected && requestFollow(selected, on)}
+          followBusy={!!selected && followBusy === selected}
+          followError={followError && followError.id === selected ? `Couldn't ${followError.on ? 'follow' : 'unfollow'} this conversation.` : undefined}
+          onFollowRetry={() => followError && requestFollow(followError.id, followError.on)}
+          otherCopies={channel === 'email' ? otherCopies : undefined}
+          people={people}
+          assignee={selected ? assigneeOf(selected) : 'praveen'}
+          onAssigneeChange={(v) => selected && setAssignees((p) => ({ ...p, [selected]: v }))}
+          coAssigneeValue={selected ? coAssigneeOf(selected) : NONE}
+          onCoAssigneeChange={(v) => selected && setCoAssignees((p) => ({ ...p, [selected]: v }))}
         />}
       >
-        {isFollowing && followedEntries.length === 0 && (
+        {isPersonal && personalEntries.length === 0 && !noAccess && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <EmptyState icon="email" title="No followed conversations" description="Open a conversation in a shared email inbox and choose Follow to keep an eye on it here." />
+            {isFollowing
+              ? <EmptyState icon="email" title="No followed conversations" description="Open a conversation in a shared email inbox and choose Follow to keep an eye on it here." />
+              : <EmptyState icon="email" title="Nothing in My Work" description="Conversations assigned or co-assigned to you show here." />}
           </div>
         )}
-        {(isFollowing ? followedEntries.length > 0 : currentView) && inbox && channel && (
+        {(isPersonal ? personalEntries.length > 0 || noAccess : currentView) && inbox && channel && (
           <div style={{ display: 'flex', height: '100%' }}>
             <ConversationList
-              title={isFollowing ? 'Following' : currentView?.view.label ?? ''}
+              title={isFollowing ? 'Following' : isMyWork ? myWorkViewLabel ?? 'My Work' : currentView?.view.label ?? ''}
               icon={isFollowing ? 'view2' : undefined}
-              subtitle={isFollowing ? 'Shared email inboxes' : undefined}
+              subtitle={isFollowing ? 'Shared email inboxes' : isMyWork ? 'My Work' : undefined}
               channel={channel}
               conversations={listItems}
               selectedId={selected}
@@ -244,17 +344,29 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
               onIconClick={() => setSidebarCollapsed((c) => !c)}
               iconLabel={sidebarCollapsed ? 'Show the sidebar' : 'Hide the sidebar'}
             />
-            {channel === 'email' && selectedConv && selected && (
+            {noAccess && (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <EmptyState icon="sharedinbox" title="You don't have access to this conversation" description="You no longer have access to its inbox, so it has been removed from Following. Ask an admin if you need it back." />
+              </div>
+            )}
+            {channel === 'email' && selectedConv && selected && !noAccess && (
               <EmailConversation
                 key={selected}
                 subject={selectedConv.subject ?? 'No subject'}
                 messages={emailThreads[selected] ?? []}
                 actions={followPlacement === 'toolbar' ? (
-                  <Tooltip content={followed.includes(selected) ? 'Unfollow' : 'Follow'} placement="bottom">
-                    <Button iconOnly variant={followed.includes(selected) ? 'secondary-filled' : 'ghost'} size="xs" aria-label={followed.includes(selected) ? 'Unfollow' : 'Follow'} aria-pressed={followed.includes(selected)} onClick={() => setFollow(selected, !followed.includes(selected))}>
-                      <Icon name="view2" size={16} />
-                    </Button>
-                  </Tooltip>
+                  <>
+                    <Tooltip content={followed.includes(selected) ? 'Unfollow' : 'Follow'} placement="bottom">
+                      <Button iconOnly variant={followed.includes(selected) ? 'secondary-filled' : 'ghost'} size="xs" disabled={followBusy === selected} aria-label={followed.includes(selected) ? 'Unfollow' : 'Follow'} aria-pressed={followed.includes(selected)} onClick={() => requestFollow(selected, !followed.includes(selected))}>
+                        <Icon name="view2" size={16} />
+                      </Button>
+                    </Tooltip>
+                    {followError?.id === selected && (
+                      <Tooltip content={`Couldn't ${followError.on ? 'follow' : 'unfollow'}. Retry`} placement="bottom">
+                        <Button size="xs" variant="ghost" iconLeft={<Icon name="erroricon" size={16} />} onClick={() => requestFollow(followError.id, followError.on)}>Retry</Button>
+                      </Tooltip>
+                    )}
+                  </>
                 ) : undefined}
                 onSend={(text) => {
                   const id = selected
@@ -304,9 +416,10 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
         <Tabs variant="filled" tabs={[{ value: 'panel', label: 'Right panel' }, { value: 'toolbar', label: 'Email toolbar' }]} value={followPlacement} onChange={(v: string) => setFollowPlacement(v as 'panel' | 'toolbar')} />
         {/* Prototype only: play follower events, to see alerts arrive in the bell. */}
         <span aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', background: 'var(--slateBorderLight)' }} />
-        <NotificationSimulator onPlay={playEvent} />
+        <NotificationSimulator label="Notifications" sections={notificationSections} onPlay={playEvent} />
+        <NotificationSimulator label="Scenarios" sections={scenarioSections(failNext, revoked.length > 0)} onPlay={playScenario} />
       </div>
-      {bellOpen && <NotificationsPanel alerts={alerts} onOpen={openAlert} onToggleRead={(t) => setAlerts((prev) => prev.map((x) => (x.id === t.id ? { ...x, read: !x.read } : x)))} onMarkAllRead={() => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))} onClose={() => { closeBell(); setNavValue('conversations') }} />}
+      {bellOpen && <NotificationsPanel alerts={alerts.filter((a) => { const e = findConv(a.convId); return !e || !revoked.includes(keyOf(e.inbox)) })} onOpen={openAlert} onToggleRead={(t) => setAlerts((prev) => prev.map((x) => (x.id === t.id ? { ...x, read: !x.read } : x)))} onMarkAllRead={() => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))} onClose={() => { closeBell(); setNavValue('conversations') }} />}
     </div>
   )
 }

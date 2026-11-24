@@ -94,6 +94,8 @@ export const homeData: HomeData = {
     {
       id: 'email02', channel: 'email', label: 'Email 02',
       conversations: [
+        // The same email as email-1: Michael copied both inboxes. Following one copy does not follow the other.
+        { id: 'email-14', name: 'Michael Scott', date: 'Nov 12', subject: 'Charged twice for my renewal', email: 'michael.scott@example.com', messages: [customer('Hi Support,\n\nI was charged twice for my annual renewal. Could you check invoice #4821 and refund the duplicate?\n\nThanks,\nMichael', 'Nov 12, 09:20 AM')] },
         { id: 'email-8', name: 'Stanley Hudson', date: 'Nov 12', subject: 'Cannot log in after update', email: 'stanley.hudson@example.com', unread: true, sla: frt, tags: high, messages: [customer('Hello,\n\nSince this morning I cannot log in. The page just reloads after I enter my password.\n\nStanley', 'Nov 12, 10:15 AM')] },
         { id: 'email-9', name: 'Ryan Howard', date: 'Nov 12', subject: 'Question about API limits', email: 'ryan.howard@example.com', messages: [customer('Hi,\n\nWhat are the rate limits on your API for the Pro plan? We are planning an integration.', 'Nov 12, 09:00 AM'), agent('Hi Ryan,\n\nThe Pro plan allows 600 requests per minute. I have attached our API guide with the details.', 'Nov 12, 09:30 AM')] },
         { id: 'email-10', name: 'Kelly Kapoor', date: 'Nov 11', subject: 'Change the email on my account', email: 'kelly.kapoor@example.com', unread: true, messages: [customer('Hi there,\n\nI got married and need to change the email address on my account. Can you help?\n\nKelly', 'Nov 11, 05:20 PM')] },

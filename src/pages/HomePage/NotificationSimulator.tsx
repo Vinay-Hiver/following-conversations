@@ -7,7 +7,10 @@ import { Icon } from '../../icons/Icon'
 /** The follower events the prototype can play. */
 export type SimulatedEvent = 'teammate-closes' | 'teammate-reopens' | 'customer-reopens' | 'teammate-pending' | 'customer-replies-open'
 
-const sections: { title: string; items: { event: SimulatedEvent; label: string; note: string }[] }[] = [
+/** A group of events in the flyout. */
+export type SimulatorSection<E extends string> = { title: string; items: { event: E; label: string; note: string }[] }
+
+export const notificationSections: SimulatorSection<SimulatedEvent>[] = [
   { title: 'Closed', items: [
     { event: 'teammate-closes', label: 'Closed by a teammate', note: 'Praveen Borawar closes it' },
   ] },
@@ -21,8 +24,8 @@ const sections: { title: string; items: { event: SimulatedEvent; label: string; 
   ] },
 ]
 
-/** Prototype only: "Notifications ^" opens a panel above it with the follower events, grouped. Play makes one happen. */
-export function NotificationSimulator({ onPlay }: { onPlay: (event: SimulatedEvent) => void }) {
+/** Prototype only: a button in the bottom bar ("Notifications ^", "Scenarios ^") that opens a flyout above it with events, grouped. Clicking one makes it happen. */
+export function NotificationSimulator<E extends string>({ label, sections, onPlay }: { label: string; sections: SimulatorSection<E>[]; onPlay: (event: E) => void }) {
   const [open, setOpen] = useState(false)
   // The flyout sits above the whole bottom bar (not inside it), centred on the Notifications button.
   const [pos, setPos] = useState({ bottom: 0, left: 0 })
@@ -46,7 +49,7 @@ export function NotificationSimulator({ onPlay }: { onPlay: (event: SimulatedEve
   }
   const root = useRef<HTMLDivElement>(null)
   const flyout = useRef<HTMLDivElement>(null)
-  const [hover, setHover] = useState<SimulatedEvent | null>(null)
+  const [hover, setHover] = useState<E | null>(null)
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => { const t = e.target as Node; if (!root.current?.contains(t) && !flyout.current?.contains(t)) close() }
@@ -58,9 +61,9 @@ export function NotificationSimulator({ onPlay }: { onPlay: (event: SimulatedEve
 
   return (
     <div ref={root} style={{ position: 'relative' }}>
-      <Button size="xs" variant="secondary" aria-expanded={open} iconRight={<Icon name={open ? 'chevrondown' : 'chevrontop'} size={16} />} onClick={toggle}>Notifications</Button>
+      <Button size="xs" variant="secondary" aria-expanded={open} iconRight={<Icon name={open ? 'chevrondown' : 'chevrontop'} size={16} />} onClick={toggle}>{label}</Button>
       {open && createPortal(
-        <div ref={flyout} role="dialog" aria-label="Simulate notifications" style={{ position: 'fixed', zIndex: 30, bottom: pos.bottom, left: pos.left, transform: 'translateX(-50%)', transformOrigin: 'bottom center', width: 360, padding: 'var(--spacing3)', background: 'var(--slateSurfaceWhite)', border: '1px solid var(--slateBorderLight)', borderRadius: 'var(--radius8)', boxShadow: '0 6px 30px color-mix(in srgb, var(--slateTextTitle) 6%, transparent)' }}>
+        <div ref={flyout} role="dialog" aria-label={`Simulate: ${label}`} style={{ position: 'fixed', zIndex: 30, bottom: pos.bottom, left: pos.left, transform: 'translateX(-50%)', transformOrigin: 'bottom center', width: 360, padding: 'var(--spacing3)', background: 'var(--slateSurfaceWhite)', border: '1px solid var(--slateBorderLight)', borderRadius: 'var(--radius8)', boxShadow: '0 6px 30px color-mix(in srgb, var(--slateTextTitle) 6%, transparent)' }}>
           {sections.map((s, i) => (
             <section key={s.title} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing1)', paddingTop: i ? 'var(--spacing3)' : 0, marginTop: i ? 'var(--spacing3)' : 0, borderTop: i ? '1px solid var(--slateBorderLight)' : undefined }}>
               <h3 className="text-body-sm-medium" style={{ margin: 0, padding: 'var(--spacing1) var(--spacing3)', color: 'var(--slateTextSubtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.title}</h3>
