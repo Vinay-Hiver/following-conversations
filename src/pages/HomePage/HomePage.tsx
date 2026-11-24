@@ -21,6 +21,7 @@ import { navSampleFooterItems, navSampleItems, navSampleUserMenu } from '../../p
 import { PageLayout } from '../../patterns/PageLayout'
 import { EmptyState } from '../../patterns/EmptyState'
 import { Button } from '../../components/Button'
+import { Modal, ModalText } from '../../components/Modal'
 import { Tabs } from '../../components/Tabs'
 import { Tooltip } from '../../components/Tooltip'
 import { Icon } from '../../icons/Icon'
@@ -150,12 +151,21 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
     setFollowError(null)
     setFollowBusy(id)
     const fails = failNext
+    // Unfollowing from the Following tab removes it from view and moves to the next followed conversation.
+    const fromFollowing = !on && view === FOLLOWING
+    const list = followedEntries.map((e) => e.conv.id)
+    const at = list.indexOf(id)
+    const next = list[at + 1] ?? list[at - 1]
     window.setTimeout(() => {
       setFollowBusy(null)
       if (fails) { setFailNext(false); setFollowError({ id, on }); return }
       setFollow(id, on)
+      if (fromFollowing) setSelected(next)
     }, 600)
   }
+  // Unfollow in the Following tab asks first.
+  const [confirmUnfollow, setConfirmUnfollow] = useState<string | null>(null)
+  const toggleFollow = (id: string, on: boolean) => { if (!on && view === FOLLOWING) setConfirmUnfollow(id); else requestFollow(id, on) }
   const [emailThreads, setEmailThreads] = useState<Record<string, EmailThreadMessage[]>>(() => Object.fromEntries(inboxes.filter((i) => i.channel === 'email').flatMap((i, k) => i.conversations.map((c, n) => [c.id, emailThread(c, avatarColors[n % avatarColors.length], k)]))))
 
   // Follower alerts in the bell. Only entering or leaving Closed alerts a follower; Open <-> Pending does not.
@@ -338,7 +348,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           status={(selected && statuses[selected]) || 'open'}
           onStatusChange={(s) => selected && changeStatus(selected, s)}
           following={followPlacement === 'panel' && channel === 'email' && selected ? followed.includes(selected) : undefined}
-          onFollowChange={(on) => selected && requestFollow(selected, on)}
+          onFollowChange={(on) => selected && toggleFollow(selected, on)}
           followBusy={!!selected && followBusy === selected}
           followError={followError && followError.id === selected ? `Couldn't ${followError.on ? 'follow' : 'unfollow'} this conversation.` : undefined}
           onFollowRetry={() => followError && requestFollow(followError.id, followError.on)}
@@ -403,7 +413,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
                 actions={followPlacement === 'toolbar' ? (
                   <>
                     <Tooltip content={followed.includes(selected) ? 'Unfollow' : 'Follow'} placement="bottom">
-                      <Button iconOnly variant={followed.includes(selected) ? 'secondary-filled' : 'ghost'} size="xs" disabled={followBusy === selected} aria-label={followed.includes(selected) ? 'Unfollow' : 'Follow'} aria-pressed={followed.includes(selected)} onClick={() => requestFollow(selected, !followed.includes(selected))}>
+                      <Button iconOnly variant={followed.includes(selected) ? 'secondary-filled' : 'ghost'} size="xs" disabled={followBusy === selected} aria-label={followed.includes(selected) ? 'Unfollow' : 'Follow'} aria-pressed={followed.includes(selected)} onClick={() => toggleFollow(selected, !followed.includes(selected))}>
                         <Icon name="view2" size={16} />
                       </Button>
                     </Tooltip>
@@ -466,6 +476,18 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
         <NotificationSimulator label="Scenarios" sections={scenarioSections(failNext, revoked.length > 0)} onPlay={playScenario} />
       </div>
       <BellDot show={alerts.some((a) => { const e = findConv(a.convId); return !a.read && (!e || !revoked.includes(keyOf(e.inbox))) })} />
+      {confirmUnfollow && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'color-mix(in srgb, var(--slateTextTitle) 30%, transparent)' }} onClick={() => setConfirmUnfollow(null)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <Modal title="Unfollow this conversation?" onClose={() => setConfirmUnfollow(null)} actions={<>
+              <Button variant="secondary" onClick={() => setConfirmUnfollow(null)}>Cancel</Button>
+              <Button variant="primary" onClick={() => { requestFollow(confirmUnfollow, false); setConfirmUnfollow(null) }}>Unfollow</Button>
+            </>}>
+              <ModalText>It will be removed from Following and you won't get alerts when it is closed or reopened. You can follow it again from the conversation.</ModalText>
+            </Modal>
+          </div>
+        </div>
+      )}
       {bellOpen && <NotificationsPanel alerts={alerts.filter((a) => { const e = findConv(a.convId); return !e || !revoked.includes(keyOf(e.inbox)) })} onOpen={openAlert} onToggleRead={(t) => setAlerts((prev) => prev.map((x) => (x.id === t.id ? { ...x, read: !x.read } : x)))} onMarkAllRead={() => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))} onClose={() => { closeBell(); setNavValue('conversations') }} />}
     </div>
   )
