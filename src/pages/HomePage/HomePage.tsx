@@ -29,6 +29,8 @@ import type { SlackThreadItem } from '../../patterns/SlackConversation'
 import { addReaction, agentMessage, deleteMessage, removeReaction, scheduleSlackReply } from '../../patterns/SlackConversation/slackThread'
 import { HomeRightPanel } from './HomeRightPanel'
 import { NotificationsPanel } from './NotificationsPanel'
+import { NotificationSimulator } from './NotificationSimulator'
+import type { SimulatedEvent } from './NotificationSimulator'
 import type { FollowerAlert } from './NotificationsPanel'
 import { homeData } from './homeData'
 import type { HomeConversation, HomeData, HomeInbox, HomeStatus } from './homeData'
@@ -120,6 +122,26 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   }
   // A customer reply reopens a closed conversation: one reopen alert, no separate reply alert. A reply to an open one alerts no one.
   const customerReplied = (id: string) => { if ((live.current.statuses[id] ?? 'open') === 'closed') changeStatus(id, 'open', 'a customer reply') }
+  // Prototype only: play a follower event. It lands on the open email conversation if you follow it, else the newest one you follow, else the first email conversation (which you then follow).
+  const playEvent = (event: SimulatedEvent) => {
+    const emailIds = inboxes.filter((i) => i.channel === 'email').flatMap((i) => i.conversations.map((c) => c.id))
+    const f = live.current.followed
+    const id = selected && f.includes(selected) ? selected : f[0] ?? emailIds[0]
+    const entry = findConv(id)
+    if (!entry) return
+    if (!f.includes(id)) { live.current = { ...live.current, followed: [id, ...f] }; setFollow(id, true) }
+    const status = () => live.current.statuses[id] ?? 'open'
+    const customerReply = () => {
+      const address = customerAddress(entry.conv)
+      setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), { id: `customer-${Date.now()}`, email: address, avatarColor: prev[id]?.find((m) => m.email === address)?.avatarColor ?? 'violet', time: nowLabel(), body: 'Hi,\n\nJust following up on this. Is there an update?' }] }))
+    }
+    // Set up the starting status quietly (no alert), then make the change as someone else.
+    if (event === 'teammate-closes') { if (status() === 'closed') changeStatus(id, 'open'); changeStatus(id, 'closed', TEAMMATE) }
+    if (event === 'teammate-reopens') { if (status() !== 'closed') changeStatus(id, 'closed'); changeStatus(id, 'open', TEAMMATE) }
+    if (event === 'customer-reopens') { if (status() !== 'closed') changeStatus(id, 'closed'); customerReply(); customerReplied(id) }
+    if (event === 'teammate-pending') { if (status() !== 'open') changeStatus(id, 'open'); changeStatus(id, 'pending', TEAMMATE) }
+    if (event === 'customer-replies-open') { if (status() === 'closed') changeStatus(id, 'open'); customerReply(); customerReplied(id) }
+  }
   const openAlert = (a: FollowerAlert) => {
     setAlerts((prev) => prev.map((x) => (x.id === a.id ? { ...x, read: true } : x)))
     setBellOpen(false)
@@ -277,26 +299,14 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
         )}
       </PageLayout>
       {/* Prototype only: switch where Follow sits, to compare the options. */}
-      <div style={{ position: 'fixed', left: '50%', bottom: 'var(--spacing4)', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: 'var(--spacing3)', padding: 'var(--spacing2) var(--spacing3)', background: 'var(--slateSurfaceWhite)', border: '1px solid var(--slateBorderDefault)', borderRadius: 'var(--radius8)' }}>
+      <div style={{ position: 'fixed', left: '50%', bottom: 'var(--spacing4)', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: 'var(--spacing3)', padding: 'var(--spacing2) var(--spacing3)', background: 'var(--slateSurfaceWhite)', border: '1px solid var(--slateBorderMild)', borderRadius: 'var(--radiusFull)', boxShadow: '0 6px 30px color-mix(in srgb, var(--slateTextTitle) 6%, transparent)' }}>
         <span className="text-body-sm-medium" style={{ color: 'var(--slateTextSubtle)', whiteSpace: 'nowrap' }}>Follow placement</span>
         <Tabs variant="filled" tabs={[{ value: 'panel', label: 'Right panel' }, { value: 'toolbar', label: 'Email toolbar' }]} value={followPlacement} onChange={(v: string) => setFollowPlacement(v as 'panel' | 'toolbar')} />
-        {/* Prototype only: events by someone else on the open conversation, to see follower alerts. */}
-        {channel === 'email' && selected && selectedConv && (
-          <>
-            <span aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', background: 'var(--slateBorderLight)' }} />
-            <span className="text-body-sm-medium" style={{ color: 'var(--slateTextSubtle)', whiteSpace: 'nowrap' }}>Simulate</span>
-            <Button size="xs" variant="secondary" disabled={statuses[selected] === 'closed'} onClick={() => changeStatus(selected, 'closed', TEAMMATE)}>Teammate closes</Button>
-            <Button size="xs" variant="secondary" disabled={statuses[selected] === 'pending'} onClick={() => changeStatus(selected, 'pending', TEAMMATE)}>Teammate sets Pending</Button>
-            <Button size="xs" variant="secondary" disabled={statuses[selected] === 'open'} onClick={() => changeStatus(selected, 'open', TEAMMATE)}>Teammate reopens</Button>
-            <Button size="xs" variant="secondary" onClick={() => {
-              const id = selected
-              setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), { id: `customer-${Date.now()}`, email: customerAddress(selectedConv), avatarColor: color, time: nowLabel(), body: 'Hi,\n\nJust following up on this. Is there an update?' }] }))
-              customerReplied(id)
-            }}>Customer replies</Button>
-          </>
-        )}
+        {/* Prototype only: play follower events, to see alerts arrive in the bell. */}
+        <span aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', background: 'var(--slateBorderLight)' }} />
+        <NotificationSimulator onPlay={playEvent} />
       </div>
-      {bellOpen && <NotificationsPanel alerts={alerts} onOpen={openAlert} onMarkAllRead={() => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))} onClose={() => { closeBell(); setNavValue('conversations') }} />}
+      {bellOpen && <NotificationsPanel alerts={alerts} onOpen={openAlert} onToggleRead={(t) => setAlerts((prev) => prev.map((x) => (x.id === t.id ? { ...x, read: !x.read } : x)))} onMarkAllRead={() => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))} onClose={() => { closeBell(); setNavValue('conversations') }} />}
     </div>
   )
 }
