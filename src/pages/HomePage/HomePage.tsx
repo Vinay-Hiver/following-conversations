@@ -235,7 +235,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
       // Following sits right after My Work in the personal section, once the user has followed something.
       if (n === 0) return { ...sec, items: sec.items.flatMap((it) => {
         if (it.id !== MY_WORK) return [it]
-        const myWork = { ...it, views: it.views?.map((v) => ({ ...v, count: myWorkEntries.length })) }
+        const myWork = { ...it, count: String(myWorkEntries.length), views: it.views?.map((v) => ({ ...v, count: myWorkEntries.length })) }
         return hasFollowed ? [myWork, { id: FOLLOWING, label: 'Following', icon: 'view2' as const }] : [myWork]
       }) }
       return sec
