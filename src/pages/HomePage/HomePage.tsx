@@ -32,6 +32,7 @@ import { addReaction, agentMessage, deleteMessage, removeReaction, scheduleSlack
 import { HomeRightPanel } from './HomeRightPanel'
 import { NotificationsPanel } from './NotificationsPanel'
 import { BellDot } from './BellDot'
+import { FollowIcon, UnfollowIcon } from './FollowIcons'
 import { NotificationSimulator, notificationSections } from './NotificationSimulator'
 import type { SimulatedEvent, SimulatorSection } from './NotificationSimulator'
 import type { HomePerson } from './HomeRightPanel'
@@ -416,7 +417,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
                   <>
                     <Tooltip content={followed.includes(selected) ? 'Unfollow' : 'Follow'} placement="bottom">
                       <Button iconOnly variant={followed.includes(selected) ? 'secondary-filled' : 'ghost'} size="xs" disabled={followBusy === selected} aria-label={followed.includes(selected) ? 'Unfollow' : 'Follow'} aria-pressed={followed.includes(selected)} onClick={() => toggleFollow(selected, !followed.includes(selected))}>
-                        <Icon name="view2" size={16} />
+                        {followed.includes(selected) ? <UnfollowIcon /> : <FollowIcon />}
                       </Button>
                     </Tooltip>
                     {followError?.id === selected && (
