@@ -127,8 +127,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const [followed, setFollowed] = useState<string[]>([])
   const [hasFollowed, setHasFollowed] = useState(false)
   // Prototype only: where the Follow action sits, switched from the floating control at the bottom.
-  const [followPlacement, setFollowPlacement] = useState<'panel' | 'toolbar'>('panel')
-  const setFollow = (id: string, on: boolean) => {
+    const setFollow = (id: string, on: boolean) => {
     setFollowed((prev) => (on ? (prev.includes(id) ? prev : [id, ...prev]) : prev.filter((x) => x !== id)))
     if (on) setHasFollowed(true)
   }
@@ -348,10 +347,6 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           contact={selectedConv ? { name: selectedConv.name, email: channel === 'email' ? customerAddress(selectedConv) : selectedConv.email } : undefined}
           status={(selected && statuses[selected]) || 'open'}
           onStatusChange={(s) => selected && changeStatus(selected, s)}
-          following={followPlacement === 'panel' && channel === 'email' && selected ? followed.includes(selected) : undefined}
-          onFollowChange={(on) => selected && toggleFollow(selected, on)}
-          followBusy={!!selected && followBusy === selected}
-          followError={followError && followError.id === selected ? `Couldn't ${followError.on ? 'follow' : 'unfollow'} conversation. Try again` : undefined}
           people={people}
           assignee={selected ? assigneeOf(selected) : 'adam'}
           onAssigneeChange={(v) => selected && setAssignees((p) => ({ ...p, [selected]: v }))}
@@ -417,7 +412,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
                 subject={selectedConv.subject ?? 'No subject'}
                 inboxEmail={`${inbox.label.toLowerCase().replace(/\s+/g, '')}@acme.com`}
                 messages={emailThreads[selected] ?? []}
-                actions={followPlacement === 'toolbar' ? (
+                actions={(
                   <>
                     <Tooltip content={followed.includes(selected) ? 'Unfollow' : 'Follow'} placement="bottom">
                       <Button iconOnly variant={followed.includes(selected) ? 'secondary-filled' : 'ghost'} size="xs" disabled={followBusy === selected} aria-label={followed.includes(selected) ? 'Unfollow' : 'Follow'} aria-pressed={followed.includes(selected)} onClick={() => toggleFollow(selected, !followed.includes(selected))}>
@@ -431,7 +426,7 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
                       </Tooltip>
                     )}
                   </>
-                ) : undefined}
+                )}
                 onSend={(text) => {
                   const id = selected
                   setEmailThreads((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), { ...agentEmail(text), email: agentAddress.alex }] }))
@@ -474,15 +469,6 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
           </div>
         )}
       </PageLayout>
-      {/* Prototype only: switch where Follow sits, to compare the options. */}
-      <div style={{ position: 'fixed', left: '50%', bottom: 'var(--spacing4)', transform: 'translateX(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: 'var(--spacing3)', padding: 'var(--spacing2) var(--spacing3)', background: 'var(--slateSurfaceWhite)', border: '1px solid var(--slateBorderMild)', borderRadius: 'var(--radiusFull)', boxShadow: '0 6px 30px color-mix(in srgb, var(--slateTextTitle) 6%, transparent)' }}>
-        <span className="text-body-sm-medium" style={{ color: 'var(--slateTextSubtle)', whiteSpace: 'nowrap' }}>Follow placement</span>
-        <Tabs variant="filled" tabs={[{ value: 'panel', label: 'Right panel' }, { value: 'toolbar', label: 'Email toolbar' }]} value={followPlacement} onChange={(v: string) => setFollowPlacement(v as 'panel' | 'toolbar')} />
-        {/* Prototype only: play follower events, to see alerts arrive in the bell. */}
-        <span aria-hidden="true" style={{ width: 1, alignSelf: 'stretch', background: 'var(--slateBorderLight)' }} />
-        <NotificationSimulator label="Notifications" sections={notificationSections} onPlay={playEvent} />
-        <NotificationSimulator label="Scenarios" sections={scenarioSections(failNext, revoked.length > 0)} onPlay={playScenario} />
-      </div>
       <BellDot show={alerts.some((a) => { const e = findConv(a.convId); return !a.read && (!e || !revoked.includes(keyOf(e.inbox))) })} />
       {confirmUnfollow && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'color-mix(in srgb, var(--slateTextTitle) 30%, transparent)' }} onClick={() => setConfirmUnfollow(null)}>
