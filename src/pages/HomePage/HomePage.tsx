@@ -85,7 +85,6 @@ const scenarioSections = (failArmed: boolean, anyRevoked: boolean): SimulatorSec
 ]
 /** Prototype only: the teammate who changes a conversation in the simulator. */
 const TEAMMATE = 'Adam'
-const statusTag: Record<HomeStatus, { label: string; color: 'lightBlue' | 'yellow' | 'green' }> = { open: { label: 'Open', color: 'lightBlue' }, pending: { label: 'Pending', color: 'yellow' }, closed: { label: 'Closed', color: 'green' } }
 
 /** The card of a conversation in the list. */
 const toListItem = (c: HomeConversation): ConversationListItem => ({ id: c.id, name: c.name, date: c.date, unread: c.unread, sla: c.sla, tags: c.tags, moreCount: c.moreCount, callDirection: c.call })
@@ -321,11 +320,9 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
   const channel = inbox?.channel
   const selectedConv = inbox?.conversations.find((c) => c.id === selected)
   const selectedIndex = inbox && selected ? inbox.conversations.findIndex((c) => c.id === selected) : 0
-  const listItems = isFollowing
-    ? followedEntries.map(({ inbox: i, conv: c }) => ({ ...toListItem(c), preview: c.subject ?? '', sla: undefined, moreCount: undefined, tags: [{ label: i.label }, statusTag[statuses[c.id] ?? 'open']] }))
-    : isMyWork
-    // My Work cards look like the inbox cards: the latest message, no inbox, role or status chips.
-    ? withLatest(myWorkEntries.map(({ conv: c }) => toListItem(c)), latestFor)
+  // Following and My Work cards look like the inbox cards: the latest message, no inbox, role or status chips.
+  const listItems = isPersonal
+    ? withLatest(personalEntries.map(({ conv: c }) => toListItem(c)), latestFor)
     : inbox ? withLatest(inView(inbox, currentView?.view.label).map(toListItem), latestFor) : []
   const color = avatarColors[Math.max(selectedIndex, 0) % avatarColors.length]
 
