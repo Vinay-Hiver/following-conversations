@@ -415,14 +415,14 @@ export function HomePage({ data = homeData, onNavChange }: { data?: HomeData; /*
                 messages={emailThreads[selected] ?? []}
                 actions={(
                   <>
-                    <Tooltip content={followed.includes(selected) ? 'Unfollow' : 'Follow'} placement="bottom">
+                    <Tooltip content={followed.includes(selected) ? 'Unfollow' : 'Follow'} placement="top">
                       <Button iconOnly variant={followed.includes(selected) ? 'secondary-filled' : 'ghost'} size="xs" disabled={followBusy === selected} aria-label={followed.includes(selected) ? 'Unfollow' : 'Follow'} aria-pressed={followed.includes(selected)} onClick={() => toggleFollow(selected, !followed.includes(selected))}>
                         {followed.includes(selected) ? <UnfollowIcon /> : <FollowIcon />}
                       </Button>
                     </Tooltip>
                     {followError?.id === selected && (
                       // No separate Retry: the eye button stays enabled and is the retry.
-                      <Tooltip content={`Couldn't ${followError.on ? 'follow' : 'unfollow'} conversation. Try again`} placement="bottom">
+                      <Tooltip content={`Couldn't ${followError.on ? 'follow' : 'unfollow'} conversation. Try again`} placement="top">
                         <span role="alert" aria-label={`Couldn't ${followError.on ? 'follow' : 'unfollow'} conversation. Try again`} style={{ display: 'inline-flex', color: 'var(--errorTextBody)' }}><Icon name="alerttriangle" size={16} /></span>
                       </Tooltip>
                     )}
